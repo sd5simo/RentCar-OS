@@ -1,31 +1,36 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-// Adaptez ce chemin vers votre client Supabase existant si nécessaire
 import { createClient } from '@supabase/supabase-js'; 
-
-// À remplacer par vos variables d'environnement si elles ne sont pas déjà configurées
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function generateAndUploadPDF({
   elementId,
   fileName,
-  bucketName = 'documents' // Nom du bucket Supabase (à créer sur votre dashboard Supabase)
+  bucketName = 'documents' // Nom du bucket Supabase
 }: {
   elementId: string;
   fileName: string;
   bucketName?: string;
 }) {
   try {
+    // 1. Déplacer l'initialisation de Supabase ICI, à l'intérieur de la fonction !
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      alert("Erreur: Les clés Supabase sont introuvables. Vérifiez vos variables d'environnement.");
+      return { success: false, error: "Clés manquantes" };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
     const element = document.getElementById(elementId);
     if (!element) throw new Error("Élément introuvable");
 
-    // 1. Capturer le DOM en image (scale: 2 pour une bonne qualité)
+    // 2. Capturer le DOM en image (scale: 2 pour une bonne qualité)
     const canvas = await html2canvas(element, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL('image/png');
 
-    // 2. Créer le PDF (format A4)
+    // 3. Créer le PDF (format A4)
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
@@ -33,7 +38,7 @@ export async function generateAndUploadPDF({
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     const pdfBlob = pdf.output('blob');
 
-    // 3. Uploader vers Supabase Storage
+    // 4. Uploader vers Supabase Storage
     const filePath = `rentals/${fileName}-${Date.now()}.pdf`;
     
     const { data, error } = await supabase
