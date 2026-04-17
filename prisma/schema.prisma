@@ -1,0 +1,154 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Client {
+  id              String    @id @default(cuid())
+  cin             String    @unique
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String
+  address         String?
+  city            String?
+  licenseNum      String?
+  licenseExp      DateTime?
+  isBlacklist     Boolean   @default(false)
+  blacklistReason String?
+  blacklistedAt   DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  reservations Reservation[]
+  rentals      Rental[]
+  infractions  Infraction[]
+}
+
+model Vehicle {
+  id                      String    @id @default(cuid())
+  plate                   String    @unique
+  brand                   String
+  model                   String
+  year                    Int
+  category                String
+  color                   String
+  fuelType                String
+  transmission            String
+  seats                   Int       @default(5)
+  dailyRate               Float
+  status                  String    @default("AVAILABLE")
+  mileage                 Int       @default(0)
+  lastOilChangeMileage    Int       @default(0)
+  nextOilChangeMileage    Int       @default(10000)
+  technicalInspectionDate DateTime?
+  insuranceExpiry         DateTime?
+  vignetteExpiry          DateTime?
+  notes                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  reservations Reservation[]
+  rentals      Rental[]
+  damageLogs   DamageLog[]
+  expenses     Expense[]
+}
+
+model Reservation {
+  id          String   @id @default(cuid())
+  refCode     String   @unique
+  clientId    String
+  vehicleId   String
+  startDate   DateTime
+  endDate     DateTime
+  totalAmount Float
+  status      String   @default("PENDING")
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client  Client  @relation(fields: [clientId], references: [id])
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  rental  Rental?
+}
+
+model Rental {
+  id              String    @id @default(cuid())
+  contractNum     String    @unique
+  clientId        String
+  vehicleId       String
+  reservationId   String?   @unique
+  startDate       DateTime
+  endDate         DateTime
+  returnDate      DateTime?
+  dailyRate       Float
+  totalDays       Int
+  totalAmount     Float
+  paidAmount      Float     @default(0)
+  deposit         Float     @default(0)
+  depositReturned Boolean   @default(false)
+  fuelLevelStart  String    @default("Plein")
+  fuelLevelEnd    String?
+  mileageStart    Int
+  mileageEnd      Int?
+  status          String    @default("ACTIVE")
+  extras          String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  client      Client       @relation(fields: [clientId], references: [id])
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+}
+
+model DamageLog {
+  id          String    @id @default(cuid())
+  vehicleId   String
+  description String
+  severity    String
+  zone        String
+  repaired    Boolean   @default(false)
+  cost        Float?
+  reportedAt  DateTime  @default(now())
+  repairedAt  DateTime?
+  rentalId    String?
+  createdAt   DateTime  @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  vehicleId   String?
+  category    String
+  description String
+  amount      Float
+  date        DateTime
+  vendor      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id])
+}
+
+model Infraction {
+  id          String   @id @default(cuid())
+  clientId    String
+  rentalId    String?
+  type        String
+  description String
+  amount      Float?
+  date        DateTime
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id])
+}
