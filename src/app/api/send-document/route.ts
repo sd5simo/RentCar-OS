@@ -2,11 +2,11 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-// Initialisation avec votre clé API (à mettre dans le .env)
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: Request) {
   try {
+    // Initialize inside the function so it doesn't crash the build
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
     const { email, clientName, documentUrl, documentType, refCode } = await request.json();
 
     if (!email) {
@@ -14,8 +14,6 @@ export async function POST(request: Request) {
     }
 
     const data = await resend.emails.send({
-      // Si vous n'avez pas encore de nom de domaine vérifié sur Resend, 
-      // utilisez l'adresse de test fournie par Resend : 'onboarding@resend.dev'
       from: 'Rentify OS <onboarding@resend.dev>', 
       to: [email],
       subject: `Votre ${documentType} - Rentify OS (Réf: ${refCode})`,
