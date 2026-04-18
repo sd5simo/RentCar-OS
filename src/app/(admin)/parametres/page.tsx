@@ -34,19 +34,28 @@ export default function ParametresPage() {
     }
   };
 
+  // Compression automatique de l'image pour éviter le crash serveur en production
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'stampUrl' | 'signatureUrl') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size (max 2MB to prevent database errors)
-    if (file.size > 2 * 1024 * 1024) {
-      alert("L'image est trop lourde. Veuillez choisir une image de moins de 2MB.");
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setSettings({ ...settings, [field]: reader.result as string });
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500; // Redimensionne l'image pour l'alléger
+        const scaleSize = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Convertit en Base64 très léger
+        const compressedBase64 = canvas.toDataURL('image/png', 0.7);
+        setSettings({ ...settings, [field]: compressedBase64 });
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -63,8 +72,7 @@ export default function ParametresPage() {
       if (newPin && newPin.length === 4) {
         if (!oldPin) {
           alert("Veuillez entrer l'ancien PIN pour le modifier.");
-          setIsSaving(false);
-          return;
+          setIsSaving(false); return;
         }
         payload.oldPin = oldPin;
         payload.newPin = newPin;
@@ -79,14 +87,13 @@ export default function ParametresPage() {
       
       if (data.success) {
         setSettings(data.settings);
-        setOldPin("");
-        setNewPin("");
+        setOldPin(""); setNewPin("");
         alert("Paramètres sauvegardés avec succès !");
       } else {
         alert(data.error);
       }
     } catch (err) {
-      alert("Erreur réseau (L'image est peut-être trop lourde).");
+      alert("Erreur réseau. Impossible de sauvegarder.");
     } finally {
       setIsSaving(false);
     }
@@ -103,14 +110,7 @@ export default function ParametresPage() {
         <h1 className="text-xl font-bold text-white mb-2">Paramètres de l'Agence</h1>
         <p className="text-sm text-slate-400 mb-8">Veuillez entrer le code PIN administrateur pour y accéder.</p>
         
-        <input 
-          type="password" 
-          maxLength={4}
-          value={pinInput}
-          onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-          placeholder="••••"
-          className="w-full text-center text-4xl tracking-[1em] py-4 bg-[#0d1117] border border-[#30363d] text-white rounded-xl focus:outline-none focus:border-brand-green-500 mb-4"
-        />
+        <input type="password" maxLength={4} value={pinInput} onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))} placeholder="••••" className="w-full text-center text-4xl tracking-[1em] py-4 bg-[#0d1117] border border-[#30363d] text-white rounded-xl focus:outline-none focus:border-brand-green-500 mb-4" />
         {error && <p className="text-red-400 text-sm font-bold mb-4">{error}</p>}
         <button onClick={handleUnlock} className="w-full py-4 bg-brand-green-600 hover:bg-brand-green-500 text-white font-bold rounded-xl flex justify-center items-center gap-2"><Lock size={18} /> Déverrouiller</button>
       </div>
@@ -153,7 +153,7 @@ export default function ParametresPage() {
               {settings?.stampUrl ? <img src={settings.stampUrl} alt="Cachet" className="max-h-full object-contain mix-blend-screen" /> : <span className="text-slate-500 text-sm">Aucun cachet</span>}
             </div>
             <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
-              <Upload size={14} /> Télécharger Image (PNG sans fond)
+              <Upload size={14} /> Télécharger Image (PNG)
               <input type="file" accept="image/png" className="hidden" onChange={(e) => handleImageUpload(e, 'stampUrl')} />
             </label>
           </div>
@@ -167,13 +167,13 @@ export default function ParametresPage() {
               {settings?.signatureUrl ? <img src={settings.signatureUrl} alt="Signature Admin" className="max-h-full object-contain mix-blend-screen" /> : <span className="text-slate-500 text-sm">Aucune signature</span>}
             </div>
             <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
-              <Upload size={14} /> Télécharger Image (PNG sans fond)
+              <Upload size={14} /> Télécharger Image (PNG)
               <input type="file" accept="image/png" className="hidden" onChange={(e) => handleImageUpload(e, 'signatureUrl')} />
             </label>
           </div>
         </div>
 
-        {/* SECURITE PIN */}
+        {/* SECURITE PIN - LE VOICI RÉPARÉ */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
           <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><Lock size={16} /> Changer le Code PIN</h2>
           <div className="space-y-4">
@@ -182,25 +182,11 @@ export default function ParametresPage() {
             <div className="flex gap-4">
               <div className="flex-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 block">Ancien PIN</label>
-                <input 
-                  type="password" 
-                  maxLength={4}
-                  value={oldPin}
-                  onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="••••"
-                  className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500"
-                />
+                <input type="password" maxLength={4} value={oldPin} onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500" />
               </div>
               <div className="flex-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 block">Nouveau PIN</label>
-                <input 
-                  type="text" 
-                  maxLength={4}
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Ex: 8520"
-                  className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500"
-                />
+                <input type="text" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} placeholder="Ex: 8520" className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500" />
               </div>
             </div>
             
