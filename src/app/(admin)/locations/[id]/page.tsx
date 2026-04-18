@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Car, Calendar, Banknote, FileText, CheckCircle, Clock, Printer, X, Edit2, Plus, Trash2, Save, Send, Copy, Users } from "lucide-react";
+import { ArrowLeft, Car, Calendar, Banknote, FileText, CheckCircle, Clock, Printer, X, Edit2, Plus, Trash2, Save, Send, Copy, Users, ChevronRight } from "lucide-react";
 import { useStore } from "@/store";
 import { cn } from "@/lib/utils";
 import { generateAndUploadPDF } from "@/lib/pdf-export";
@@ -10,10 +10,10 @@ export default function LocationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   
-  // 1. Bypass strict de Zustand pour éviter les erreurs de types
+  // 1. Bypass strict de Zustand
   const store = useStore() as any;
   
-  // 2. Bypass strict sur la Location pour autoriser les nouveaux champs E-Signature
+  // 2. Bypass strict sur la Location
   const rawRental = store.rentals?.find((x: any) => x.id === id);
   const r = rawRental || null; 
   
@@ -34,7 +34,6 @@ export default function LocationDetailPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [settings, setSettings] = useState<any>(null);
 
-  // Récupération des paramètres (Logo, Cachet, Signatures)
   useEffect(() => {
     fetch('/api/settings').then(res => res.json()).then(data => { if (data.settings) setSettings(data.settings); }).catch(() => {});
   }, []);
@@ -67,7 +66,7 @@ export default function LocationDetailPage() {
     store.updateRental(id as string, { extras: extrasList.filter((_: any, i: number) => i !== idx) } as any);
   };
 
-  // 4. Fonction de génération sécurisée et ultra-réactive pour l'E-Signature
+  // 4. Fonction de génération sécurisée pour l'E-Signature
   const generateSignatureLink = async () => {
     setIsGenerating(true);
     const token = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -102,7 +101,6 @@ export default function LocationDetailPage() {
     </div>
   );
 
-  // Helpers pour le PDF Détaillé
   const formatDateTime = (dateString?: string | Date) => {
     if (!dateString) return { date: "...", time: "..." };
     const d = new Date(dateString);
@@ -115,9 +113,6 @@ export default function LocationDetailPage() {
 
   return (
     <>
-      {/* =========================================================================
-          PARTIE 1 : INTERFACE NORMALE DU TABLEAU DE BORD (CACHÉE À L'IMPRESSION) 
-          ========================================================================= */}
       <div className={cn("space-y-5 animate-fade-in", previewDoc && "print:hidden")}>
         
         {/* HEADER */}
@@ -183,28 +178,39 @@ export default function LocationDetailPage() {
           </div>
 
           <div className="space-y-4">
+            
+            {/* BOUTON CARTE CLIENT CLIQUABLE */}
             {client && (
-              <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center gap-4 hover:border-brand-green-500/30 transition-colors">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-green-600 to-brand-green-800 flex items-center justify-center text-white font-bold text-lg">
+              <button 
+                onClick={() => router.push(`/clients/${client.id}`)}
+                className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center gap-4 hover:border-brand-green-500/50 hover:bg-[#1c2130] transition-all group"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-green-600 to-brand-green-800 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                   {client.firstName[0]}{client.lastName[0]}
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-500">Locataire</p>
+                <div className="flex-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Locataire</p>
                   <p className="text-white font-bold text-sm">{client.firstName} {client.lastName}</p>
                   <p className="text-xs text-slate-400">CIN: {client.cin} • {client.phone}</p>
                 </div>
-              </div>
+                <ChevronRight size={18} className="text-slate-500 group-hover:text-brand-green-400 transition-colors" />
+              </button>
             )}
 
+            {/* BOUTON CARTE VEHICULE CLIQUABLE */}
             {vehicle && (
-              <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center gap-4 hover:border-brand-green-500/30 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-[#1c2130] border border-[#30363d] flex items-center justify-center text-slate-400"><Car size={20} /></div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-500">Véhicule</p>
+              <button 
+                onClick={() => router.push(`/vehicules/${vehicle.id}`)}
+                className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center gap-4 hover:border-brand-green-500/50 hover:bg-[#1c2130] transition-all group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-[#1c2130] border border-[#30363d] flex items-center justify-center text-slate-400 flex-shrink-0"><Car size={20} /></div>
+                <div className="flex-1">
+                  <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Véhicule</p>
                   <p className="text-white font-bold text-sm">{vehicle.brand} {vehicle.model}</p>
                   <p className="text-xs text-slate-400 font-mono">{vehicle.plate}</p>
                 </div>
-              </div>
+                <ChevronRight size={18} className="text-slate-500 group-hover:text-brand-green-400 transition-colors" />
+              </button>
             )}
 
             <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4">
@@ -260,14 +266,10 @@ export default function LocationDetailPage() {
         </div>
       </div>
 
-
-      {/* =========================================================================
-          PARTIE 2 : LE CONTRAT PDF COMPLET (DÉTAILLÉ + SIGNATURES INJECTÉES) 
-          ========================================================================= */}
+      {/* OVERLAY PDF CONTRACT POUR IMPRESSION */}
       {previewDoc === 'contract' && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 print:bg-white transition-all duration-300">
           
-          {/* BARRE D'ACTIONS DU HAUT */}
           <div className="flex items-center justify-between p-4 bg-[#161b22] border-b border-[#30363d] print:hidden shrink-0">
             <h2 className="text-white font-bold text-lg">Prévisualisation Document</h2>
             <div className="flex items-center gap-4">
@@ -288,11 +290,9 @@ export default function LocationDetailPage() {
             </div>
           </div>
 
-          {/* CORPS DU DOCUMENT DÉTAILLÉ */}
           <div className="flex-1 overflow-auto p-8 flex justify-center print:p-0 print:overflow-visible">
             <div id="document-to-pdf" className="w-[210mm] min-h-[297mm] bg-white text-black font-sans text-[11px] shadow-2xl p-[10mm] print:shadow-none print:w-full print:h-auto">
               
-              {/* EN-TÊTE */}
               <div className="flex justify-between items-center mb-8">
                 <div className="w-[150px] h-[70px] flex items-center justify-start">
                   {settings?.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" /> : <div className="text-gray-400 border p-2 text-xs">[Logo Agence]</div>}
@@ -303,7 +303,6 @@ export default function LocationDetailPage() {
                 <div className="w-[120px] h-[60px] border border-gray-400 flex items-center justify-center text-gray-400">[QR Code]</div>
               </div>
 
-              {/* LIGNE 1 : LOCATAIRE | VEHICULE | LOCATION */}
               <div className="flex border border-black mb-6 w-full leading-snug">
                 <div className="w-1/3 border-r border-black flex flex-col">
                   <div className="text-center font-bold border-b border-black py-1 uppercase" style={printBgStyle}>LOCATAIRE</div>
@@ -335,7 +334,6 @@ export default function LocationDetailPage() {
                 </div>
               </div>
 
-              {/* LIGNE 2 : TABLEAU DES CONDUCTEURS */}
               <div className="border border-black mb-6">
                 <div className="text-center font-bold border-b border-black py-1 uppercase tracking-widest" style={printBgStyle}>CONDUCTEURS</div>
                 <table className="w-full text-center border-collapse">
@@ -360,10 +358,7 @@ export default function LocationDetailPage() {
                 </table>
               </div>
 
-              {/* LIGNE 3 : DEPART / RETOUR + SIGNATURES INJECTÉES */}
               <div className="flex border border-black mb-4 w-full">
-                
-                {/* DEPART */}
                 <div className="w-1/2 border-r border-black flex flex-col">
                   <div className="text-center font-bold border-b border-black py-1 uppercase tracking-widest" style={printBgStyle}>DEPART</div>
                   <div className="p-3 flex flex-col h-[220px]">
@@ -390,7 +385,6 @@ export default function LocationDetailPage() {
                   </div>
                 </div>
 
-                {/* RETOUR */}
                 <div className="w-1/2 flex flex-col">
                   <div className="text-center font-bold border-b border-black py-1 uppercase tracking-widest" style={printBgStyle}>RETOUR</div>
                   <div className="p-3 flex flex-col h-[220px]">
@@ -404,7 +398,6 @@ export default function LocationDetailPage() {
                     <div className="flex justify-between font-bold px-2 relative mt-auto">
                       <div className="w-1/2 relative h-16">
                         <p>Le Client</p>
-                        {/* Optionnel: Ajouter signature de retour plus tard */}
                       </div>
                       <div className="w-1/2 text-right relative h-16">
                         <p>Le loueur</p>
@@ -414,7 +407,6 @@ export default function LocationDetailPage() {
                     </div>
                   </div>
                 </div>
-                
               </div>
             </div>
           </div>
