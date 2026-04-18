@@ -32,7 +32,7 @@ const NAV = [
   { title: "Modération", items: [
     { label: "Infractions",        href: "/moderation/infractions", icon: <AlertTriangle size={14} /> },
   ]},
-  // ✨ NOUVEAU MENU PARAMÈTRES ✨
+  // ✨ MENU PARAMÈTRES POUR E-SIGNATURE & LOGO ✨
   { title: "Configuration", items: [
     { label: "Paramètres",         href: "/parametres",             icon: <Settings size={14} /> },
   ]},
@@ -52,7 +52,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {!collapsed ? (
           <>
             <div className="flex items-center gap-2.5">
-              {/* ✨ CUSTOM LOGO - EXPANDED ✨ */}
               <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                 <img src="/logo.png" alt="Rentify-OSLogo" className="w-full h-full object-contain" />
               </div>
@@ -66,7 +65,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </button>
           </>
         ) : (
-          /* ✨ CUSTOM LOGO - COLLAPSED ✨ */
           <div className="w-8 h-8 flex items-center justify-center mx-auto">
             <img src="/logo.png" alt="Rentify-OSLogo" className="w-full h-full object-contain" />
           </div>

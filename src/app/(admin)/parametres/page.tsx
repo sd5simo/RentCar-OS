@@ -1,125 +1,217 @@
 "use client";
-import { useState } from "react";
-import { useAuth } from "@/store/auth";
-import { Key, Save, AlertCircle, CheckCircle } from "lucide-react";
 
-export default function SettingsPage() {
-  const { username, credentials, updatePassword } = useAuth();
-  const [currentPass, setCurrentPass] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
-  const [status, setStatus] = useState<{ type: "error" | "success" | null; msg: string }>({ type: null, msg: "" });
+import { useState, useEffect, useRef } from "react";
+import { Lock, Settings, Image as ImageIcon, CheckCircle, Save, Upload } from "lucide-react";
+import { generateAndUploadPDF } from "@/lib/pdf-export"; // On va réutiliser Supabase via ce fichier
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus({ type: null, msg: "" });
+export default function ParametresPage() {
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-    if (!username) return;
+  // Données
+  const [settings, setSettings] = useState<any>(null);
+  const [newPin, setNewPin] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-    // 1. Vérifier l'ancien mot de passe
-    if (credentials[username] !== currentPass.trim()) {
-      setStatus({ type: "error", msg: "L'ancien mot de passe est incorrect." });
-      return;
+  // Récupérer les paramètres au chargement
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) setSettings(data.settings);
+      })
+      .catch(() => setError("Erreur de chargement"))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleUnlock = () => {
+    if (pinInput === settings?.securityPin) {
+      setIsUnlocked(true);
+      setError("");
+    } else {
+      setError("Code PIN incorrect.");
     }
-
-    // 2. Vérifier que les nouveaux correspondent
-    if (newPass.trim() !== confirmPass.trim()) {
-      setStatus({ type: "error", msg: "Les nouveaux mots de passe ne correspondent pas." });
-      return;
-    }
-
-    // 3. Vérifier la longueur
-    if (newPass.trim().length < 6) {
-      setStatus({ type: "error", msg: "Le nouveau mot de passe doit contenir au moins 6 caractères." });
-      return;
-    }
-
-    // 4. Sauvegarder
-    updatePassword(username, newPass.trim());
-    setStatus({ type: "success", msg: "Mot de passe modifié avec succès !" });
-    setCurrentPass("");
-    setNewPass("");
-    setConfirmPass("");
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'stampUrl' | 'signatureUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convertir l'image en Base64 pour l'enregistrer dans la base de données
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSettings({ ...settings, [field]: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const payload: any = {
+        logoUrl: settings.logoUrl,
+        stampUrl: settings.stampUrl,
+        signatureUrl: settings.signatureUrl,
+      };
+
+      if (newPin && newPin.length === 4) {
+        payload.oldPin = settings.securityPin;
+        payload.newPin = newPin;
+      }
+
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setSettings(data.settings);
+        setNewPin("");
+        alert("Paramètres sauvegardés avec succès !");
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      alert("Erreur réseau");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) return <div className="p-8 text-slate-400">Chargement des paramètres...</div>;
+
+  // --- ECRAN DE VERROUILLAGE ---
+  if (!isUnlocked) {
+    return (
+      <div className="max-w-md mx-auto mt-20 bg-[#161b22] border border-[#30363d] rounded-2xl p-8 text-center shadow-2xl">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-green-500/10 mb-6">
+          <Settings className="w-8 h-8 text-brand-green-400" />
+        </div>
+        <h1 className="text-xl font-bold text-white mb-2">Paramètres de l'Agence</h1>
+        <p className="text-sm text-slate-400 mb-8">Veuillez entrer le code PIN administrateur pour accéder à cette page.</p>
+        
+        <input 
+          type="password" 
+          maxLength={4}
+          value={pinInput}
+          onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+          placeholder="••••"
+          className="w-full text-center text-4xl tracking-[1em] py-4 bg-[#0d1117] border border-[#30363d] text-white rounded-xl focus:outline-none focus:border-brand-green-500 transition-all mb-4"
+        />
+        
+        {error && <p className="text-red-400 text-sm font-bold mb-4">{error}</p>}
+        
+        <button 
+          onClick={handleUnlock}
+          className="w-full py-4 bg-brand-green-600 hover:bg-brand-green-500 text-white font-bold rounded-xl flex justify-center items-center gap-2 transition-all"
+        >
+          <Lock size={18} /> Déverrouiller
+        </button>
+      </div>
+    );
+  }
+
+  // --- ECRAN DES PARAMETRES ---
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Paramètres du compte</h1>
-        <p className="text-slate-500 text-sm">Gérez vos informations de connexion et votre sécurité.</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center justify-between border-b border-[#30363d] pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Settings className="text-brand-green-400" /> Paramètres Globaux
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">Configurez les éléments visuels de vos contrats.</p>
+        </div>
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-500 text-white font-bold rounded-lg transition-all"
+        >
+          {isSaving ? "Sauvegarde..." : <><Save size={18} /> Enregistrer</>}
+        </button>
       </div>
 
-      <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#21262d]">
-          <div className="w-10 h-10 rounded-lg bg-brand-green-500/10 flex items-center justify-center text-brand-green-400">
-            <Key size={20} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-200">Changer le mot de passe</h2>
-            <p className="text-xs text-slate-500">Utilisateur actuel : <span className="font-bold text-white capitalize">{username}</span></p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* LOGO */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Logo de l'Agence</h2>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-full h-32 border-2 border-dashed border-[#30363d] rounded-lg flex items-center justify-center bg-[#0d1117] overflow-hidden">
+              {settings?.logoUrl ? (
+                <img src={settings.logoUrl} alt="Logo" className="max-h-full object-contain" />
+              ) : (
+                <span className="text-slate-500 text-sm">Aucun logo</span>
+              )}
+            </div>
+            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
+              <Upload size={14} /> Télécharger Image
+              <input type="file" accept="image/png, image/jpeg" className="hidden" onChange={(e) => handleImageUpload(e, 'logoUrl')} />
+            </label>
           </div>
         </div>
 
-        {status.type === "error" && (
-          <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 text-sm">
-            <AlertCircle size={16} />
-            <p>{status.msg}</p>
+        {/* CACHET */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Cachet (Tampon)</h2>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-full h-32 border-2 border-dashed border-[#30363d] rounded-lg flex items-center justify-center bg-[#0d1117] overflow-hidden">
+              {settings?.stampUrl ? (
+                <img src={settings.stampUrl} alt="Cachet" className="max-h-full object-contain mix-blend-screen" />
+              ) : (
+                <span className="text-slate-500 text-sm">Aucun cachet</span>
+              )}
+            </div>
+            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
+              <Upload size={14} /> Télécharger Image (PNG sans fond)
+              <input type="file" accept="image/png" className="hidden" onChange={(e) => handleImageUpload(e, 'stampUrl')} />
+            </label>
           </div>
-        )}
+        </div>
 
-        {status.type === "success" && (
-          <div className="mb-6 p-3 rounded-lg bg-brand-green-500/10 border border-brand-green-500/20 flex items-center gap-2 text-brand-green-400 text-sm">
-            <CheckCircle size={16} />
-            <p>{status.msg}</p>
+        {/* SIGNATURE ADMIN */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Signature Gérant</h2>
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-full h-32 border-2 border-dashed border-[#30363d] rounded-lg flex items-center justify-center bg-[#0d1117] overflow-hidden">
+              {settings?.signatureUrl ? (
+                <img src={settings.signatureUrl} alt="Signature Admin" className="max-h-full object-contain mix-blend-screen" />
+              ) : (
+                <span className="text-slate-500 text-sm">Aucune signature</span>
+              )}
+            </div>
+            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
+              <Upload size={14} /> Télécharger Image (PNG sans fond)
+              <input type="file" accept="image/png" className="hidden" onChange={(e) => handleImageUpload(e, 'signatureUrl')} />
+            </label>
           </div>
-        )}
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Mot de passe actuel</label>
-            <input 
-              type="password" 
-              value={currentPass}
-              onChange={(e) => setCurrentPass(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500/50 transition-colors"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* SECURITE PIN */}
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
+          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><Lock size={16} /> Changer le Code PIN</h2>
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400">Modifiez le code à 4 chiffres utilisé pour accéder à cette page.</p>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Nouveau mot de passe</label>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 block">Nouveau PIN (4 chiffres)</label>
               <input 
-                type="password" 
-                value={newPass}
-                onChange={(e) => setNewPass(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500/50 transition-colors"
-                placeholder="Nouveau mot de passe"
+                type="text" 
+                maxLength={4}
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="Ex: 8520"
+                className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500"
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Confirmer le mot de passe</label>
-              <input 
-                type="password" 
-                value={confirmPass}
-                onChange={(e) => setConfirmPass(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500/50 transition-colors"
-                placeholder="Répétez le mot de passe"
-              />
-            </div>
+            <p className="text-[10px] text-brand-orange-400 border border-brand-orange-500/20 bg-brand-orange-500/10 p-2 rounded">
+              Attention : Ne perdez pas ce code. Le code par défaut est 1234.
+            </p>
           </div>
+        </div>
 
-          <div className="pt-4 border-t border-[#21262d] mt-6 flex justify-end">
-            <button 
-              type="submit"
-              disabled={!currentPass || !newPass || !confirmPass}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-500 disabled:bg-slate-700 disabled:text-slate-400 text-white font-semibold rounded-lg text-sm transition-colors"
-            >
-              <Save size={16} />
-              Enregistrer les modifications
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

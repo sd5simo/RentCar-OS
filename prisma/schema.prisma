@@ -101,6 +101,13 @@ model Rental {
   status          String    @default("ACTIVE")
   extras          String?
   notes           String?
+  
+  // Nouveaux champs pour la signature électronique du client
+  clientSignatureUrl String?
+  signatureToken     String?  @unique
+  signaturePin       String?
+  signatureStatus    String   @default("PENDING")
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -151,4 +158,13 @@ model Infraction {
   createdAt   DateTime @default(now())
 
   client Client @relation(fields: [clientId], references: [id])
+}
+
+model AgencySettings {
+  id             String   @id @default(cuid())
+  logoUrl        String?
+  stampUrl       String?  // Cachet
+  signatureUrl   String?  // Signature Admin
+  securityPin    String   @default("1234") // Code de sécurité
+  updatedAt      DateTime @updatedAt
 }
