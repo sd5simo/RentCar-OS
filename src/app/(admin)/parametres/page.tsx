@@ -9,7 +9,6 @@ export default function ParametresPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Données
   const [settings, setSettings] = useState<any>(null);
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -18,24 +17,21 @@ export default function ParametresPage() {
   useEffect(() => {
     fetch("/api/settings")
       .then(res => res.json())
-      .then(data => {
-        if (data.settings) setSettings(data.settings);
-      })
-      .catch(() => setError("Erreur de chargement"))
+      .then(data => { if (data.settings) setSettings(data.settings); })
+      .catch(() => setError("Erreur"))
       .finally(() => setIsLoading(false));
   }, []);
 
   const handleUnlock = () => {
     if (pinInput === settings?.securityPin) {
-      setIsUnlocked(true);
-      setError("");
+      setIsUnlocked(true); setError("");
     } else {
-      setError("Code PIN incorrect.");
+      setError("Code PIN administrateur incorrect.");
     }
   };
 
-  // Compression automatique de l'image pour éviter le crash serveur en production
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'stampUrl' | 'signatureUrl') => {
+  // Ultra-compression pour empêcher le crash du serveur (Netlify/Vercel)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -44,15 +40,15 @@ export default function ParametresPage() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 500; // Redimensionne l'image pour l'alléger
+        const MAX_WIDTH = 250; // Force une toute petite taille
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
         
-        // Convertit en Base64 très léger
-        const compressedBase64 = canvas.toDataURL('image/png', 0.7);
+        // Convertit en base64 allégé
+        const compressedBase64 = canvas.toDataURL('image/png'); 
         setSettings({ ...settings, [field]: compressedBase64 });
       };
       img.src = event.target?.result as string;
@@ -69,9 +65,10 @@ export default function ParametresPage() {
         signatureUrl: settings.signatureUrl,
       };
 
+      // Si l'utilisateur veut changer le mot de passe PIN
       if (newPin && newPin.length === 4) {
         if (!oldPin) {
-          alert("Veuillez entrer l'ancien PIN pour le modifier.");
+          alert("Veuillez entrer l'ancien mot de passe (PIN) pour le modifier."); 
           setIsSaving(false); return;
         }
         payload.oldPin = oldPin;
@@ -85,117 +82,87 @@ export default function ParametresPage() {
       });
       const data = await res.json();
       
-      if (data.success) {
-        setSettings(data.settings);
-        setOldPin(""); setNewPin("");
-        alert("Paramètres sauvegardés avec succès !");
+      if (res.ok && data.success) {
+        setSettings(data.settings); setOldPin(""); setNewPin("");
+        alert("✅ Paramètres et images sauvegardés avec succès !");
       } else {
-        alert(data.error);
+        alert("❌ Erreur : " + data.error);
       }
     } catch (err) {
-      alert("Erreur réseau. Impossible de sauvegarder.");
+      alert("❌ Erreur réseau. Le serveur n'a pas pu traiter la demande.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (isLoading) return <div className="p-8 text-slate-400">Chargement des paramètres...</div>;
+  if (isLoading) return <div className="p-8 text-slate-400">Chargement...</div>;
 
+  // ECRAN DE VERROUILLAGE
   if (!isUnlocked) {
     return (
-      <div className="max-w-md mx-auto mt-20 bg-[#161b22] border border-[#30363d] rounded-2xl p-8 text-center shadow-2xl">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-green-500/10 mb-6">
-          <Settings className="w-8 h-8 text-brand-green-400" />
-        </div>
+      <div className="max-w-md mx-auto mt-20 bg-[#161b22] border border-[#30363d] rounded-2xl p-8 text-center">
+        <Settings className="w-12 h-12 text-brand-green-400 mx-auto mb-4" />
         <h1 className="text-xl font-bold text-white mb-2">Paramètres de l'Agence</h1>
-        <p className="text-sm text-slate-400 mb-8">Veuillez entrer le code PIN administrateur pour y accéder.</p>
-        
-        <input type="password" maxLength={4} value={pinInput} onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))} placeholder="••••" className="w-full text-center text-4xl tracking-[1em] py-4 bg-[#0d1117] border border-[#30363d] text-white rounded-xl focus:outline-none focus:border-brand-green-500 mb-4" />
-        {error && <p className="text-red-400 text-sm font-bold mb-4">{error}</p>}
-        <button onClick={handleUnlock} className="w-full py-4 bg-brand-green-600 hover:bg-brand-green-500 text-white font-bold rounded-xl flex justify-center items-center gap-2"><Lock size={18} /> Déverrouiller</button>
+        <p className="text-sm text-slate-400 mb-6">Accès sécurisé. Entrez le PIN (1234 par défaut).</p>
+        <input type="password" maxLength={4} value={pinInput} onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))} placeholder="••••" className="w-full text-center text-4xl py-4 bg-[#0d1117] border border-[#30363d] text-white rounded-xl mb-4" />
+        {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
+        <button onClick={handleUnlock} className="w-full py-4 bg-brand-green-600 text-white font-bold rounded-xl">Déverrouiller</button>
       </div>
     );
   }
 
+  // ECRAN DES PARAMETRES
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between border-b border-[#30363d] pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2"><Settings className="text-brand-green-400" /> Paramètres Globaux</h1>
-          <p className="text-sm text-slate-400 mt-1">Configurez les éléments visuels de vos contrats.</p>
-        </div>
-        <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-500 text-white font-bold rounded-lg transition-all">
-          {isSaving ? "Sauvegarde..." : <><Save size={18} /> Enregistrer</>}
+      <div className="flex justify-between items-center border-b border-[#30363d] pb-4">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2"><Settings className="text-brand-green-400" /> Paramètres Globaux</h1>
+        <button onClick={handleSave} disabled={isSaving} className="px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-500 text-white font-bold rounded-lg transition-all">
+          {isSaving ? "Sauvegarde..." : "Enregistrer les modifications"}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
         {/* LOGO */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
           <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Logo de l'Agence</h2>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-full h-32 border-2 border-dashed border-[#30363d] rounded-lg flex items-center justify-center bg-[#0d1117] overflow-hidden">
-              {settings?.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-h-full object-contain" /> : <span className="text-slate-500 text-sm">Aucun logo</span>}
-            </div>
-            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
-              <Upload size={14} /> Télécharger Image
-              <input type="file" accept="image/png, image/jpeg" className="hidden" onChange={(e) => handleImageUpload(e, 'logoUrl')} />
-            </label>
+          <div className="w-full h-32 bg-[#0d1117] border border-[#30363d] rounded mb-4 flex items-center justify-center">
+             {settings?.logoUrl ? <img src={settings.logoUrl} className="max-h-full" /> : <span className="text-slate-500">Aucun logo</span>}
           </div>
+          <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'logoUrl')} className="text-sm text-slate-300 w-full" />
         </div>
 
         {/* CACHET */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
           <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Cachet (Tampon)</h2>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-full h-32 border-2 border-dashed border-[#30363d] rounded-lg flex items-center justify-center bg-[#0d1117] overflow-hidden">
-              {settings?.stampUrl ? <img src={settings.stampUrl} alt="Cachet" className="max-h-full object-contain mix-blend-screen" /> : <span className="text-slate-500 text-sm">Aucun cachet</span>}
-            </div>
-            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
-              <Upload size={14} /> Télécharger Image (PNG)
-              <input type="file" accept="image/png" className="hidden" onChange={(e) => handleImageUpload(e, 'stampUrl')} />
-            </label>
+          <div className="w-full h-32 bg-[#0d1117] border border-[#30363d] rounded mb-4 flex items-center justify-center">
+             {settings?.stampUrl ? <img src={settings.stampUrl} className="max-h-full mix-blend-screen" /> : <span className="text-slate-500">Aucun cachet</span>}
           </div>
+          <input type="file" accept="image/png" onChange={(e) => handleImageUpload(e, 'stampUrl')} className="text-sm text-slate-300 w-full" />
         </div>
 
-        {/* SIGNATURE ADMIN */}
+        {/* SIGNATURE */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
-          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Signature Gérant</h2>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-full h-32 border-2 border-dashed border-[#30363d] rounded-lg flex items-center justify-center bg-[#0d1117] overflow-hidden">
-              {settings?.signatureUrl ? <img src={settings.signatureUrl} alt="Signature Admin" className="max-h-full object-contain mix-blend-screen" /> : <span className="text-slate-500 text-sm">Aucune signature</span>}
-            </div>
-            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-slate-300 rounded border border-[#30363d] text-sm font-semibold transition-colors">
-              <Upload size={14} /> Télécharger Image (PNG)
-              <input type="file" accept="image/png" className="hidden" onChange={(e) => handleImageUpload(e, 'signatureUrl')} />
-            </label>
+          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><ImageIcon size={16} /> Signature du Gérant</h2>
+          <div className="w-full h-32 bg-[#0d1117] border border-[#30363d] rounded mb-4 flex items-center justify-center">
+             {settings?.signatureUrl ? <img src={settings.signatureUrl} className="max-h-full mix-blend-screen" /> : <span className="text-slate-500">Aucune signature</span>}
           </div>
+          <input type="file" accept="image/png" onChange={(e) => handleImageUpload(e, 'signatureUrl')} className="text-sm text-slate-300 w-full" />
         </div>
 
-        {/* SECURITE PIN - LE VOICI RÉPARÉ */}
+        {/* MOT DE PASSE */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
-          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><Lock size={16} /> Changer le Code PIN</h2>
-          <div className="space-y-4">
-            <p className="text-xs text-slate-400">Modifiez le code à 4 chiffres utilisé pour accéder à cette page.</p>
-            
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 block">Ancien PIN</label>
-                <input type="password" maxLength={4} value={oldPin} onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))} placeholder="••••" className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500" />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 block">Nouveau PIN</label>
-                <input type="text" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} placeholder="Ex: 8520" className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500" />
-              </div>
+          <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2"><Lock size={16} /> Mot de Passe d'accès (PIN)</h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-slate-400">Ancien PIN</label>
+              <input type="password" maxLength={4} value={oldPin} onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white" />
             </div>
-            
-            <p className="text-[10px] text-brand-orange-400 border border-brand-orange-500/20 bg-brand-orange-500/10 p-2 rounded">
-              Attention : Ne perdez pas ce code. Le code par défaut est 1234.
-            </p>
+            <div>
+              <label className="text-xs text-slate-400">Nouveau PIN (4 chiffres)</label>
+              <input type="text" maxLength={4} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white" />
+            </div>
           </div>
         </div>
-
       </div>
     </div>
   );
