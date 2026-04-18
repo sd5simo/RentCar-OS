@@ -68,24 +68,39 @@ export default function LocationDetailPage() {
   const handleRemoveExtra = (idx: number) => updateRental(id as string, { extras: r.extras.filter((_, i) => i !== idx) });
 
   // Génération du lien de signature électronique
+  // Génération du lien de signature électronique
   const generateSignatureLink = async () => {
     setIsGenerating(true);
     const token = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const pin = Math.floor(100000 + Math.random() * 900000).toString(); // 6 chiffres
     
     try {
       const res = await fetch(`/api/rentals/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signatureToken: token, signaturePin: pin, signatureStatus: "PENDING" })
+        body: JSON.stringify({ 
+          signatureToken: token, 
+          signaturePin: pin, 
+          signatureStatus: "PENDING" 
+        })
       });
-      if (res.ok) {
-        updateRental(id as string, { signatureToken: token, signaturePin: pin, signatureStatus: "PENDING" } as any);
+      
+      const data = await res.json();
+      
+      if (res.ok && !data.error) {
+        // Mettre à jour le store local pour que l'UI change immédiatement
+        updateRental(id as string, { 
+          signatureToken: token, 
+          signaturePin: pin, 
+          signatureStatus: "PENDING" 
+        } as any);
+        alert("Lien généré avec succès !"); // Ajout d'un feedback visuel
       } else {
-        alert("Erreur serveur lors de la sauvegarde.");
+        alert(`Erreur serveur: ${data.error || "Impossible de sauvegarder le lien."}`);
       }
     } catch (error) {
       alert("Erreur réseau lors de la génération du lien.");
+      console.error(error);
     }
     setIsGenerating(false);
   };
