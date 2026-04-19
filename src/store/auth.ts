@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 interface AuthState {
   isAuthenticated: boolean;
-  username: string | null; // <-- Défini correctement ici
+  username: string | null;
   dbUser: string;
   dbPass: string;
   fetchDbCredentials: () => Promise<void>;

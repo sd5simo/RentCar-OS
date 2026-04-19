@@ -5,12 +5,13 @@ export async function GET() {
   try {
     let settings = await prisma.agencySettings.findFirst();
     if (!settings) {
-      // @ts-ignore
-      settings = await prisma.agencySettings.create({ data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } });
+      settings = await prisma.agencySettings.create({ 
+        data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } 
+      });
     }
     return NextResponse.json({ settings });
   } catch (error: any) {
-    return NextResponse.json({ error: "Erreur Base de données: " + error.message }, { status: 500 });
+    return NextResponse.json({ error: "Erreur DB: " + error.message }, { status: 500 });
   }
 }
 
@@ -20,8 +21,9 @@ export async function PUT(req: Request) {
     let settings = await prisma.agencySettings.findFirst();
 
     if (!settings) {
-      // @ts-ignore
-      settings = await prisma.agencySettings.create({ data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } });
+      settings = await prisma.agencySettings.create({ 
+        data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } 
+      });
     }
 
     if (data.newPin && data.newPin.length === 4) {
@@ -45,8 +47,6 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({ success: true, settings: updatedSettings });
   } catch (error: any) {
-    console.error("API CRASH:", error);
-    // Renvoie la véritable cause de l'erreur au lieu d'un faux message !
     return NextResponse.json({ error: "Crash API: " + error.message }, { status: 500 });
   }
 }

@@ -41,7 +41,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   
-  // CORRECTION : On utilise bien 'username' ici, correspondant au store.
   const { username, logout } = useAuth();
 
   const handleLogout = () => { logout(); router.push("/login"); };
@@ -121,16 +120,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
       )}
 
-      {/* User Section */}
+      {/* User */}
       {!collapsed && (
         <div className="p-3 border-t border-[#21262d]">
           <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-[#161b22]">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-orange-400 to-brand-orange-600 flex items-center justify-center flex-shrink-0">
-              {/* CORRECTION : Utilisation de 'username' */}
               <span className="text-[11px] font-bold text-white">{username ? username[0].toUpperCase() : "A"}</span>
             </div>
             <div className="flex-1 min-w-0">
-              {/* CORRECTION : Utilisation de 'username' */}
               <p className="text-xs font-semibold text-slate-200 truncate capitalize">{username ?? "Admin"}</p>
               <p className="text-[10px] text-slate-500">Administrateur</p>
             </div>

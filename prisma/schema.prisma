@@ -101,6 +101,12 @@ model Rental {
   status          String    @default("ACTIVE")
   extras          String?
   notes           String?
+
+  clientSignatureUrl String?
+  signatureToken     String?  @unique
+  signaturePin       String?
+  signatureStatus    String   @default("PENDING")
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -153,12 +159,15 @@ model Infraction {
   client Client @relation(fields: [clientId], references: [id])
 }
 
-model Settings {
-  id            String   @id @default("default_id")
-  adminUsername String   @default("admin")
-  adminPassword String   
-  logo          String?  
-  cachet        String?  
-  signature     String?  
-  updatedAt     DateTime @updatedAt
+model AgencySettings {
+  id             String   @id @default(cuid())
+  logoUrl        String?
+  stampUrl       String?  
+  signatureUrl   String?  
+  securityPin    String   @default("1234") 
+  
+  adminUsername  String   @default("admin")
+  adminPassword  String   @default("rentify")
+
+  updatedAt      DateTime @updatedAt
 }
