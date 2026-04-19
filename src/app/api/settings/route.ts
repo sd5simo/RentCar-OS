@@ -5,11 +5,10 @@ export async function GET() {
   try {
     let settings = await prisma.agencySettings.findFirst();
     if (!settings) {
-      settings = await prisma.agencySettings.create({ data: { securityPin: "1234" } });
+      settings = await prisma.agencySettings.create({ data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } });
     }
     return NextResponse.json({ settings });
   } catch (error) {
-    console.error("GET settings error:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
@@ -18,30 +17,25 @@ export async function PUT(req: Request) {
   try {
     const data = await req.json();
     let settings = await prisma.agencySettings.findFirst();
-
     if (!settings) {
       settings = await prisma.agencySettings.create({ data: { securityPin: "1234" } });
-    }
-
-    if (data.newPin && data.newPin.length === 4) {
-      if (data.oldPin !== settings.securityPin) {
-        return NextResponse.json({ error: "L'ancien PIN est incorrect." }, { status: 403 });
-      }
     }
 
     const updatedSettings = await prisma.agencySettings.update({
       where: { id: settings.id },
       data: {
-        logoUrl: data.logoUrl !== undefined ? data.logoUrl : settings.logoUrl,
-        stampUrl: data.stampUrl !== undefined ? data.stampUrl : settings.stampUrl,
-        signatureUrl: data.signatureUrl !== undefined ? data.signatureUrl : settings.signatureUrl,
-        securityPin: data.newPin || settings.securityPin,
+        ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }),
+        ...(data.stampUrl !== undefined && { stampUrl: data.stampUrl }),
+        ...(data.signatureUrl !== undefined && { signatureUrl: data.signatureUrl }),
+        ...(data.newPin && { securityPin: data.newPin }),
+        ...(data.adminUsername && { adminUsername: data.adminUsername }),
+        ...(data.adminPassword && { adminPassword: data.adminPassword }),
       }
     });
 
     return NextResponse.json({ success: true, settings: updatedSettings });
   } catch (error) {
-    console.error("PUT settings error:", error);
-    return NextResponse.json({ error: "Erreur sauvegarde. Image trop lourde ?" }, { status: 500 });
+    console.error("Erreur PUT settings:", error);
+    return NextResponse.json({ error: "Erreur serveur. L'image est peut-être encore trop lourde." }, { status: 500 });
   }
 }
