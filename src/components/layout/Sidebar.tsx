@@ -41,8 +41,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   
-  // Correction de 'username' vers 'user'
-  const { user, logout } = useAuth();
+  // CORRECTION : On utilise bien 'username' ici, correspondant au store.
+  const { username, logout } = useAuth();
 
   const handleLogout = () => { logout(); router.push("/login"); };
 
@@ -121,16 +121,17 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
       )}
 
-      {/* User */}
+      {/* User Section */}
       {!collapsed && (
         <div className="p-3 border-t border-[#21262d]">
           <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-[#161b22]">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-orange-400 to-brand-orange-600 flex items-center justify-center flex-shrink-0">
-              {/* Utilisation de 'user' au lieu de 'username' */}
-              <span className="text-[11px] font-bold text-white">{user ? user[0].toUpperCase() : "A"}</span>
+              {/* CORRECTION : Utilisation de 'username' */}
+              <span className="text-[11px] font-bold text-white">{username ? username[0].toUpperCase() : "A"}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-200 truncate capitalize">{user ?? "Admin"}</p>
+              {/* CORRECTION : Utilisation de 'username' */}
+              <p className="text-xs font-semibold text-slate-200 truncate capitalize">{username ?? "Admin"}</p>
               <p className="text-[10px] text-slate-500">Administrateur</p>
             </div>
             <button onClick={handleLogout} title="Déconnexion" className="text-slate-500 hover:text-red-400 transition-colors p-1">

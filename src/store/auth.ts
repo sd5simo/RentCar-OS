@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 interface AuthState {
   isAuthenticated: boolean;
-  username: string | null; // Corrigé en 'username' pour ne plus bloquer Netlify
+  username: string | null; // <-- Défini correctement ici
   dbUser: string;
   dbPass: string;
   fetchDbCredentials: () => Promise<void>;
@@ -11,7 +11,6 @@ interface AuthState {
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
-  // On retire le localStorage pour revenir à l'ancien système (déconnexion au rafraîchissement)
   isAuthenticated: false,
   username: null,
   
@@ -28,7 +27,9 @@ export const useAuth = create<AuthState>((set, get) => ({
           dbPass: data.settings.adminPassword || "rentify" 
         });
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Erreur lors de la récupération des identifiants", e);
+    }
   },
 
   login: (u, p) => {
