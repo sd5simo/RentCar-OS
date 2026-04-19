@@ -1,7 +1,8 @@
 "use client";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
-import { TrendingUp, TrendingDown, Trophy, Car, Users, FileText, AlertTriangle, Clock, CheckCircle, Banknote, Calendar, Star } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, Car, Users, FileText, AlertTriangle, Clock, CheckCircle, Banknote, Calendar, Star, Eye, EyeOff, Wifi } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { cn } from "@/lib/utils";
 import SmartAlertsPanel from "@/components/dashboard/SmartAlertsPanel";
@@ -16,6 +17,9 @@ export default function StatistiquesPage() {
   const { rentals, clients, vehicles, expenses, infractions } = useStore();
   const alerts = useSmartAlerts();
   const criticalAlerts = alerts.filter((a) => a.type === "CRITICAL");
+
+  // 🔴 Master Privacy Toggle (Masqué par défaut comme demandé)
+  const [showBalances, setShowBalances] = useState(false);
 
   // ── Live financials ──────────────────────────────────────────────
   const totalRevenue  = rentals.reduce((s, r) => s + r.paidAmount, 0);
@@ -44,7 +48,6 @@ export default function StatistiquesPage() {
   // ── Fleet occupancy ──────────────────────────────────────────────
   const occupancyPct = vehicles.length > 0 ? Math.round((vehicles.filter(v => v.status === "RENTED").length / vehicles.length) * 100) : 0;
 
-  // 🔴 Tooltip adapté au style verre
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
@@ -54,7 +57,7 @@ export default function StatistiquesPage() {
           <div key={i} className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full flex-shrink-0 shadow-sm" style={{ backgroundColor: p.color, boxShadow: `0 0 8px ${p.color}` }} />
             <span className="text-slate-300">{p.name}:</span>
-            <span className="text-white font-bold">{p.value.toLocaleString("fr-FR")} MAD</span>
+            <span className="text-white font-bold">{showBalances ? `${p.value.toLocaleString("fr-FR")} MAD` : "•••• MAD"}</span>
           </div>
         ))}
       </div>
@@ -62,48 +65,85 @@ export default function StatistiquesPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in relative z-10">
+    <div className="space-y-6 animate-fade-in relative z-10 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">Statistiques Financières</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">Tableau de bord</h1>
           <p className="text-slate-400 text-sm mt-0.5 font-medium">
-            RentCar-OS · {vehicles.length} véhicules · données temps réel
+            Rentify-OS · {vehicles.length} véhicules · données temps réel
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {criticalAlerts.length > 0 && (
-            <button onClick={() => document.getElementById("alerts-section")?.scrollIntoView({ behavior: "smooth" })}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl glass-panel border-red-500/30 text-red-400 text-xs font-bold animate-pulse hover:animate-none hover:bg-red-500/10 transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)]">
-              <AlertTriangle size={14} /> {criticalAlerts.length} alerte{criticalAlerts.length > 1 ? "s" : ""} critique{criticalAlerts.length > 1 ? "s" : ""}
-            </button>
-          )}
+          {/* 🔴 Bouton Privacy (Mode discret) */}
+          <button 
+            onClick={() => setShowBalances(!showBalances)} 
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl text-slate-300 hover:text-white hover:border-brand-green-500/50 text-sm font-bold transition-all shadow-lg group">
+            {showBalances ? <Eye size={18} className="text-brand-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> : <EyeOff size={18} className="text-slate-400 group-hover:text-white transition-colors" />}
+            <span>{showBalances ? "Masquer les montants" : "Afficher les montants"}</span>
+          </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 💳 KPI Bank Cards - Exactement comme votre nouvelle image */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {[
-          { label: "Total Revenus",     value: `${totalRevenue.toLocaleString("fr-FR")} MAD`,  icon: <TrendingUp size={16} />,  glow: "green",  sub: `${rentals.length} contrats` },
-          { label: "Total Dépenses",    value: `${totalExpenses.toLocaleString("fr-FR")} MAD`, icon: <TrendingDown size={16} />,glow: "orange", sub: `${expenses.length} entrées` },
-          { label: "Bénéfice Net",      value: `${totalNet.toLocaleString("fr-FR")} MAD`,      icon: <Trophy size={16} />,      glow: totalNet >= 0 ? "green" : "orange", sub: totalRevenue > 0 ? `${((totalNet/totalRevenue)*100).toFixed(1)}% marge` : "—" },
-          { label: "Impayés en attente",value: `${pendingPayments.toLocaleString("fr-FR")} MAD`,icon: <Banknote size={16} />,   glow: pendingPayments > 0 ? "orange" : "none", sub: `${activeRentals.length} locations actives` },
+          { 
+            label: "Total Revenus", value: totalRevenue.toLocaleString("fr-FR", { minimumFractionDigits: 2 }), 
+            subLabel: "CONTRATS", sub: rentals.length,
+            glowColor: "bg-emerald-500"
+          },
+          { 
+            label: "Total Dépenses", value: totalExpenses.toLocaleString("fr-FR", { minimumFractionDigits: 2 }), 
+            subLabel: "ENTRÉES", sub: expenses.length,
+            glowColor: "bg-rose-500"
+          },
+          { 
+            label: "Bénéfice Net", value: totalNet.toLocaleString("fr-FR", { minimumFractionDigits: 2 }), 
+            subLabel: "MARGE", sub: totalRevenue > 0 ? `${((totalNet/totalRevenue)*100).toFixed(1)}%` : "—",
+            glowColor: totalNet >= 0 ? "bg-indigo-500" : "bg-rose-500"
+          },
+          { 
+            label: "Impayés en attente", value: pendingPayments.toLocaleString("fr-FR", { minimumFractionDigits: 2 }), 
+            subLabel: "LOC. ACTIVES", sub: activeRentals.length,
+            glowColor: pendingPayments > 0 ? "bg-orange-500" : "bg-slate-500"
+          },
         ].map((k) => (
-          // 🔴 .glass-panel remplace bg-[#161b22]
-          <div key={k.label} className={cn("glass-panel rounded-2xl p-5 relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300",
-            k.glow === "green"  ? "border-brand-green-500/30 shadow-[0_8px_32px_rgba(34,197,94,0.15)] bg-brand-green-500/5" :
-            k.glow === "orange" ? "border-brand-orange-500/30 shadow-[0_8px_32px_rgba(249,115,22,0.15)] bg-brand-orange-500/5" : "")}>
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">{k.label}</p>
-                <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center backdrop-blur-md border",
-                  k.glow === "green" ? "bg-brand-green-500/20 text-brand-green-400 border-brand-green-500/30" :
-                  k.glow === "orange" ? "bg-brand-orange-500/20 text-brand-orange-400 border-brand-orange-500/30" : "bg-white/10 text-slate-300 border-white/20")}>
-                  {k.icon}
-                </div>
+          <div key={k.label} 
+            className="relative rounded-[24px] p-6 overflow-hidden transition-all duration-500 hover:-translate-y-1 group border border-white/5 shadow-2xl bg-[#0c0c0e] h-[200px] flex flex-col justify-between isolate cursor-default">
+            
+            {/* Effet de lueur (Glow) coloré */}
+            <div className={cn("absolute -bottom-12 -right-12 w-48 h-48 rounded-full blur-[60px] pointer-events-none opacity-30 group-hover:opacity-50 transition-opacity duration-700", k.glowColor)} />
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/noise-pattern-with-subtle-cross-lines.png')] opacity-[0.02] pointer-events-none mix-blend-overlay" />
+
+            {/* Haut de la carte : Label et NFC */}
+            <div className="flex justify-between items-start relative z-10 w-full">
+              <p className="text-sm font-medium text-slate-400 tracking-wide drop-shadow-sm">{k.label}</p>
+              <Wifi size={20} className="rotate-90 text-slate-500 drop-shadow-sm" />
+            </div>
+
+            {/* Milieu : Badge MAD + Montant (Chiffré ou Masqué) */}
+            <div className="relative z-10 flex items-center gap-3 mt-4">
+              <span className="text-[10px] font-bold px-2 py-1 rounded bg-white/5 border border-white/10 text-slate-300 shadow-sm">
+                MAD
+              </span>
+              <p className="text-3xl font-semibold text-white tracking-tight drop-shadow-sm">
+                {showBalances ? k.value : "•••• ••••"}
+              </p>
+            </div>
+
+            {/* Bas de la carte : Sous-titre & Logo Mastercard */}
+            <div className="flex justify-between items-end relative z-10 mt-auto drop-shadow-md">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{k.subLabel}</span>
+                <span className="text-sm font-bold text-white">{k.sub}</span>
               </div>
-              <p className="text-2xl font-black text-white leading-tight drop-shadow-sm">{k.value}</p>
-              <p className="text-xs text-slate-400 mt-1.5 font-medium">{k.sub}</p>
+              
+              {/* Logo style Mastercard */}
+              <div className="flex -space-x-3 opacity-90">
+                 <div className="w-8 h-8 rounded-full bg-[#eb001b] mix-blend-screen" />
+                 <div className="w-8 h-8 rounded-full bg-[#f79e1b] mix-blend-screen" />
+              </div>
             </div>
           </div>
         ))}
@@ -155,7 +195,7 @@ export default function StatistiquesPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => showBalances ? `${(v/1000).toFixed(0)}k` : `••`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="revenue" name="Revenus" stroke="#22c55e" strokeWidth={3} fill="url(#gRev)" style={{ filter: 'drop-shadow(0px 4px 6px rgba(34,197,94,0.3))' }} />
                 <Area type="monotone" dataKey="expenses" name="Dépenses" stroke="#f97316" strokeWidth={3} fill="url(#gExp)" style={{ filter: 'drop-shadow(0px 4px 6px rgba(249,115,22,0.3))' }} />
@@ -169,7 +209,7 @@ export default function StatistiquesPage() {
               <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => showBalances ? `${(v/1000).toFixed(0)}k` : `••`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="net" name="Net" radius={[6, 6, 0, 0]}>
                   {monthlyData.map((m, i) => <Cell key={i} fill={m.net >= 0 ? "#22c55e" : "#f97316"} opacity={0.9} />)}
@@ -236,12 +276,12 @@ export default function StatistiquesPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-sm font-bold text-white font-mono">{r.contractNum}</span>
                       {isLate && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">En retard</span>}
-                      {unpaid > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-orange-500/20 text-brand-orange-400 border border-brand-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.15)]">{unpaid.toLocaleString("fr-FR")} MAD dû</span>}
+                      {unpaid > 0 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-orange-500/20 text-brand-orange-400 border border-brand-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.15)]">{showBalances ? unpaid.toLocaleString("fr-FR") : "•••"} MAD dû</span>}
                     </div>
                     <p className="text-xs text-slate-300 truncate">{client?.firstName} {client?.lastName} · {vehicle?.plate} ({vehicle?.brand} {vehicle?.model})</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-white">{r.totalAmount.toLocaleString("fr-FR")} MAD</p>
+                    <p className="text-sm font-bold text-white">{showBalances ? r.totalAmount.toLocaleString("fr-FR") : "••••"} MAD</p>
                     <p className={cn("text-xs font-semibold mt-0.5", isLate ? "text-red-400" : "text-slate-400")}>
                       {isLate ? `+${Math.abs(daysLeft)}j retard` : `−${daysLeft}j`}
                     </p>
@@ -256,7 +296,6 @@ export default function StatistiquesPage() {
 
       {/* Top clients + fleet occupancy */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Top 3 clients */}
         <div className="glass-panel rounded-3xl p-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-[50px] pointer-events-none" />
           <p className="text-base font-bold text-white mb-5 flex items-center gap-2 drop-shadow-sm">
@@ -272,7 +311,7 @@ export default function StatistiquesPage() {
                   <p className="text-sm font-bold text-white">{c.firstName} {c.lastName}</p>
                   <p className="text-xs text-slate-400 font-medium">{c.count} location{c.count > 1 ? "s" : ""}</p>
                 </div>
-                <p className="text-sm font-black text-brand-green-400">{c.spent.toLocaleString("fr-FR")} MAD</p>
+                <p className="text-sm font-black text-brand-green-400">{showBalances ? c.spent.toLocaleString("fr-FR") : "••••"} MAD</p>
               </button>
             ))}
             {topClients.filter(c => c.spent > 0).length === 0 && (
@@ -281,7 +320,6 @@ export default function StatistiquesPage() {
           </div>
         </div>
 
-        {/* Fleet status breakdown */}
         <div className="glass-panel rounded-3xl p-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[50px] pointer-events-none" />
           <p className="text-base font-bold text-white mb-5 flex items-center gap-2 drop-shadow-sm">
@@ -317,25 +355,6 @@ export default function StatistiquesPage() {
               <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-1000 shadow-[0_0_10px_rgba(59,130,246,0.8)]" style={{ width: `${occupancyPct}%` }} />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Performance banner */}
-      <div className={cn("glass-panel rounded-2xl p-5 flex items-center gap-5 backdrop-blur-2xl",
-        totalNet >= 0 ? "border-brand-green-500/40 bg-brand-green-500/10 shadow-[0_0_30px_rgba(34,197,94,0.1)]" : "border-brand-orange-500/40 bg-brand-orange-500/10 shadow-[0_0_30px_rgba(249,115,22,0.1)]")}>
-        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg border", 
-          totalNet >= 0 ? "bg-brand-green-500/20 border-brand-green-500/30" : "bg-brand-orange-500/20 border-brand-orange-500/30")}>
-          {totalNet >= 0 ? <Trophy size={24} className="text-brand-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" /> : <TrendingDown size={24} className="text-brand-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]" />}
-        </div>
-        <div className="flex-1">
-          <p className={cn("text-base font-black drop-shadow-sm", totalNet >= 0 ? "text-brand-green-400" : "text-brand-orange-400")}>
-            {totalNet >= 0 ? "🎉 Performance positive — RentCar-OS!" : "⚠️ Charges supérieures aux revenus"}
-          </p>
-          <p className="text-sm text-slate-300 mt-1 font-medium">
-            Bénéfice net: <span className="text-white font-bold">{totalNet.toLocaleString("fr-FR")} MAD</span>
-            {totalRevenue > 0 && <> · Marge: <span className={cn("font-bold", totalNet >= 0 ? "text-brand-green-400" : "text-brand-orange-400")}>{((totalNet/totalRevenue)*100).toFixed(1)}%</span></>}
-            {bestMonth.revenue > 0 && <> · Meilleur mois: <span className="text-white font-bold">{bestMonth.fullMonth}</span> ({bestMonth.revenue.toLocaleString("fr-FR")} MAD)</>}
-          </p>
         </div>
       </div>
     </div>
