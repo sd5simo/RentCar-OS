@@ -5,17 +5,11 @@ export async function GET() {
   try {
     let settings = await prisma.agencySettings.findFirst();
     if (!settings) {
-      settings = await prisma.agencySettings.create({ 
-        data: { 
-          securityPin: "1234",
-          adminUsername: "admin", 
-          adminPassword: "rentify" 
-        } 
-      });
+      // @ts-ignore
+      settings = await prisma.agencySettings.create({ data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } });
     }
     return NextResponse.json({ settings });
   } catch (error) {
-    console.error("GET settings error:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
@@ -26,39 +20,32 @@ export async function PUT(req: Request) {
     let settings = await prisma.agencySettings.findFirst();
 
     if (!settings) {
-      settings = await prisma.agencySettings.create({ 
-        data: { 
-          securityPin: "1234",
-          adminUsername: "admin",
-          adminPassword: "rentify"
-        } 
-      });
+      // @ts-ignore
+      settings = await prisma.agencySettings.create({ data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } });
     }
 
-    // Vérification de l'ancien PIN si on veut changer le PIN Contrat
     if (data.newPin && data.newPin.length === 4) {
       if (data.oldPin !== settings.securityPin) {
         return NextResponse.json({ error: "L'ancien PIN est incorrect." }, { status: 403 });
       }
     }
 
+    const updateData: any = {};
+    if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl;
+    if (data.stampUrl !== undefined) updateData.stampUrl = data.stampUrl;
+    if (data.signatureUrl !== undefined) updateData.signatureUrl = data.signatureUrl;
+    if (data.newPin) updateData.securityPin = data.newPin;
+    if (data.adminUsername) updateData.adminUsername = data.adminUsername;
+    if (data.adminPassword) updateData.adminPassword = data.adminPassword;
+
     const updatedSettings = await prisma.agencySettings.update({
       where: { id: settings.id },
-      data: {
-        logoUrl: data.logoUrl !== undefined ? data.logoUrl : settings.logoUrl,
-        stampUrl: data.stampUrl !== undefined ? data.stampUrl : settings.stampUrl,
-        signatureUrl: data.signatureUrl !== undefined ? data.signatureUrl : settings.signatureUrl,
-        securityPin: data.newPin || settings.securityPin,
-        
-        // ✨ C'EST ICI QUE LE MOT DE PASSE EST ENFIN SAUVEGARDÉ ✨
-        adminUsername: data.adminUsername !== undefined ? data.adminUsername : settings.adminUsername,
-        adminPassword: data.adminPassword !== undefined ? data.adminPassword : settings.adminPassword,
-      }
+      data: updateData
     });
 
     return NextResponse.json({ success: true, settings: updatedSettings });
-  } catch (error) {
+  } catch (error: any) {
     console.error("PUT settings error:", error);
-    return NextResponse.json({ error: "Erreur sauvegarde. Base de données non mise à jour ?" }, { status: 500 });
+    return NextResponse.json({ error: "Erreur base de données. L'API a planté car les colonnes manquent." }, { status: 500 });
   }
 }

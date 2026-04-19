@@ -5,7 +5,7 @@ import { Lock, Settings, Image as ImageIcon, Save, Key, AlertCircle, CheckCircle
 import { useAuth } from "@/store/auth";
 
 export default function SettingsPage() {
-  const { user } = useAuth(); // Utilisateur actuellement connecté
+  const { username } = useAuth(); // Utilisateur actuellement connecté
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [authError, setAuthError] = useState("");
@@ -195,7 +195,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-200">Changer le mot de passe (Dashboard)</h2>
-            <p className="text-xs text-slate-500">Utilisateur actuel : <span className="font-bold text-white capitalize">{user || settings?.adminUsername || "Admin"}</span></p>
+            <p className="text-xs text-slate-500">Utilisateur actuel : <span className="font-bold text-white capitalize">{username || settings?.adminUsername || "Admin"}</span></p>
           </div>
         </div>
 

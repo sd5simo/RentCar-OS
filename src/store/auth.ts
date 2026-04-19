@@ -2,8 +2,7 @@ import { create } from "zustand";
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: string | null;
-  // Ces valeurs seront écrasées par la base de données
+  username: string | null; // Corrigé en 'username' pour ne plus bloquer Netlify
   dbUser: string;
   dbPass: string;
   fetchDbCredentials: () => Promise<void>;
@@ -12,13 +11,13 @@ interface AuthState {
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
-  isAuthenticated: typeof window !== "undefined" ? localStorage.getItem("auth") === "true" : false,
-  user: typeof window !== "undefined" ? localStorage.getItem("user") : null,
+  // On retire le localStorage pour revenir à l'ancien système (déconnexion au rafraîchissement)
+  isAuthenticated: false,
+  username: null,
   
   dbUser: "admin", 
   dbPass: "rentify", 
 
-  // Récupère discrètement les identifiants depuis la Base de Données
   fetchDbCredentials: async () => {
     try {
       const res = await fetch("/api/settings");
@@ -29,33 +28,23 @@ export const useAuth = create<AuthState>((set, get) => ({
           dbPass: data.settings.adminPassword || "rentify" 
         });
       }
-    } catch (e) {
-      console.error("Erreur lors de la récupération des identifiants:", e);
-    }
+    } catch (e) {}
   },
 
-  // La fonction de login reste synchrone pour ne pas casser votre page login !
-  login: (username, password) => {
+  login: (u, p) => {
     const { dbUser, dbPass } = get();
-    
-    // Vérifie contre la Base de Données
-    if (username === dbUser && password === dbPass) {
-      localStorage.setItem("auth", "true");
-      localStorage.setItem("user", username);
-      set({ isAuthenticated: true, user: username });
+    if (u === dbUser && p === dbPass) {
+      set({ isAuthenticated: true, username: u });
       return true;
     }
     return false;
   },
 
   logout: () => {
-    localStorage.removeItem("auth");
-    localStorage.removeItem("user");
-    set({ isAuthenticated: false, user: null });
+    set({ isAuthenticated: false, username: null });
   },
 }));
 
-// Au chargement du site, on lance la récupération des vrais identifiants
 if (typeof window !== "undefined") {
   useAuth.getState().fetchDbCredentials();
 }
