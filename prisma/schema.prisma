@@ -166,7 +166,7 @@ model AgencySettings {
   signatureUrl   String?  
   securityPin    String   @default("1234") 
   
-  // CES DEUX LIGNES MANQUAIENT : C'EST CE QUI FAISAIT PLANTER VOS IMAGES !
+  // CES DEUX LIGNES SONT OBLIGATOIRES POUR LE MOT DE PASSE
   adminUsername  String   @default("admin")
   adminPassword  String   @default("rentify")
 
