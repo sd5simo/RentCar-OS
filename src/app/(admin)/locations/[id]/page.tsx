@@ -319,6 +319,39 @@ export default function LocationDetailPage() {
           </div>
         </div>
       )}
+      {/* Close modal (inchangé) */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCloseModal(false)} />
+          <div className="relative bg-[#161b22] border border-[#30363d] rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2"><CheckCircle size={16} className="text-brand-green-400" /> Clôturer la location</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block">Date de retour</label>
+                <input type="date" value={closeForm.returnDate} onChange={(e) => setCloseForm({ ...closeForm, returnDate: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500/50" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block">Kilométrage retour</label>
+                <input type="number" value={closeForm.mileageEnd} onChange={(e) => setCloseForm({ ...closeForm, mileageEnd: e.target.value })}
+                  placeholder={`≥ ${r.mileageStart.toLocaleString("fr-FR")} km`}
+                  className="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-green-500/50" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 block">Niveau carburant retour</label>
+                <select value={closeForm.fuelEnd} onChange={(e) => setCloseForm({ ...closeForm, fuelEnd: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 focus:outline-none">
+                  {["Vide", "1/4", "1/2", "3/4", "Plein"].map((f) => <option key={f}>{f}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowCloseModal(false)} className="flex-1 py-2.5 bg-[#1c2130] border border-[#30363d] text-slate-400 font-semibold rounded-lg text-sm">Annuler</button>
+              <button onClick={handleClose} className="flex-1 py-2.5 bg-brand-green-600 hover:bg-brand-green-500 text-white font-semibold rounded-lg text-sm transition-colors">Confirmer la clôture</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
