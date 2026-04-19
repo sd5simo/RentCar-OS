@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic"; // 🚨 ESSENTIEL POUR NETLIFY
+export const dynamic = "force-dynamic"; // 🚨 FORCE L'API À RESTER ACTIVE SUR NETLIFY
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -13,12 +13,15 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-// 🚨 TRANSFORMÉ EN POST POUR ÉVITER L'ERREUR 405
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const extrasJson = body.extras !== undefined ? JSON.stringify(body.extras) : undefined;
 
+    const extrasJson = body.extras !== undefined
+      ? JSON.stringify(body.extras)
+      : undefined;
+
+    // Build update payload — only include defined fields
     const data: any = {};
     if (body.status        !== undefined) data.status        = body.status;
     if (body.paidAmount    !== undefined) data.paidAmount    = Number(body.paidAmount);
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const ops: any[] = [prisma.rental.update({ where: { id: params.id }, data })];
 
-    // Libère la voiture quand la location est clôturée
+    // When closing a rental, set vehicle back to AVAILABLE and update its mileage
     if (body.status === "COMPLETED" && body.vehicleId) {
       ops.push(
         prisma.vehicle.update({
@@ -45,10 +48,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         })
       );
     }
+    // When cancelling
+    if (body.status === "CANCELLED" && body.vehicleId) {
+      ops.push(
+        prisma.vehicle.update({
+          where: { id: body.vehicleId },
+          data: { status: "AVAILABLE" },
+        })
+      );
+    }
 
     const [updated] = await prisma.$transaction(ops);
     return NextResponse.json(serializeRental(updated));
   } catch (err: any) {
+    console.error("[PUT /api/rentals/id]", err);
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }
@@ -56,10 +69,18 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
     const rental = await prisma.rental.findUniqueOrThrow({ where: { id: params.id } });
-    if (rental.status === "ACTIVE") return NextResponse.json({ error: "Clôturez la location d'abord." }, { status: 409 });
+
+    if (rental.status === "ACTIVE") {
+      return NextResponse.json(
+        { error: "Clôturez la location avant de la supprimer." },
+        { status: 409 }
+      );
+    }
+
     await prisma.rental.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (err: any) {
+    console.error("[DELETE /api/rentals/id]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
