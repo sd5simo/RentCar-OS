@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
     try {
       const res = await fetch("/api/settings", {
-        method: "PUT",
+        method: "POST", // 🚨 CHANGÉ EN POST ICI
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminPassword: newPass.trim() })
       });
@@ -117,7 +117,7 @@ export default function SettingsPage() {
       }
 
       const res = await fetch("/api/settings", {
-        method: "PUT",
+        method: "POST", // 🚨 CHANGÉ EN POST ICI
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });

@@ -1,7 +1,9 @@
+export const dynamic = "force-dynamic"; // 🚨 FORCE L'API À RESTER ACTIVE SUR NETLIFY
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     let settings = await prisma.agencySettings.findFirst();
     if (!settings) {
@@ -15,7 +17,8 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: Request) {
+// 🚨 REMPLACÉ PUT PAR POST
+export async function POST(req: Request) {
   try {
     const data = await req.json();
     let settings = await prisma.agencySettings.findFirst();
