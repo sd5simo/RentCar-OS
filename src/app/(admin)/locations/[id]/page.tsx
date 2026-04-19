@@ -16,7 +16,9 @@ export default function LocationDetailPage() {
 
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closeForm, setCloseForm] = useState({ mileageEnd: "", fuelEnd: "Plein", returnDate: new Date().toISOString().slice(0, 10) });
-  const [isClosing, setIsClosing] = useState(false); // État de chargement
+  
+  // NOUVEAU: État de chargement pour le bouton de clôture
+  const [isClosing, setIsClosing] = useState(false);
   
   const [editingPayment, setEditingPayment] = useState(false);
   const [paidAmount, setPaidAmount] = useState(r?.paidAmount.toString() ?? "");
@@ -30,12 +32,12 @@ export default function LocationDetailPage() {
   const grandTotal = r.totalAmount + extrasTotal;
   const remaining = grandTotal - r.paidAmount;
 
-  // 🚨 LA NOUVELLE FONCTION MAGIQUE QUI COMMUNIQUE AVEC LA BASE DE DONNÉES
+  // 🚨 FONCTION DE CLÔTURE CONNECTÉE À L'API
   const handleClose = async () => {
     setIsClosing(true);
     try {
       const res = await fetch(`/api/rentals/${id}`, {
-        method: "POST", // Utilise POST pour Netlify
+        method: "POST", // On utilise POST pour contourner Netlify
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "COMPLETED",
@@ -47,7 +49,6 @@ export default function LocationDetailPage() {
       });
 
       if (res.ok) {
-        // Met à jour l'interface instantanément
         closeRental(id as string, parseInt(closeForm.mileageEnd) || r.mileageStart, closeForm.fuelEnd, closeForm.returnDate);
         setShowCloseModal(false);
         router.refresh();
@@ -61,32 +62,14 @@ export default function LocationDetailPage() {
     }
   };
 
-  const handleSavePayment = async () => { 
-    try {
-      await fetch(`/api/rentals/${id}`, { method: "POST", body: JSON.stringify({ paidAmount: parseFloat(paidAmount) || 0 }) });
-      updateRental(id as string, { paidAmount: parseFloat(paidAmount) || 0 }); 
-      setEditingPayment(false); 
-    } catch(e) {}
-  };
-
-  const handleAddExtra = async () => {
+  const handleSavePayment = () => { updateRental(id as string, { paidAmount: parseFloat(paidAmount) || 0 }); setEditingPayment(false); };
+  const handleAddExtra = () => {
     if (!newExtra.label || !newExtra.amount) return;
-    const newExtras = [...(r.extras || []), { label: newExtra.label, amount: parseFloat(newExtra.amount) }];
-    try {
-      await fetch(`/api/rentals/${id}`, { method: "POST", body: JSON.stringify({ extras: newExtras }) });
-      updateRental(id as string, { extras: newExtras });
-      setNewExtra({ label: "", amount: "" });
-      setShowExtraForm(false);
-    } catch(e) {}
+    updateRental(id as string, { extras: [...(r.extras || []), { label: newExtra.label, amount: parseFloat(newExtra.amount) }] });
+    setNewExtra({ label: "", amount: "" });
+    setShowExtraForm(false);
   };
-
-  const handleRemoveExtra = async (idx: number) => {
-    const newExtras = r.extras.filter((_, i) => i !== idx);
-    try {
-      await fetch(`/api/rentals/${id}`, { method: "POST", body: JSON.stringify({ extras: newExtras }) });
-      updateRental(id as string, { extras: newExtras });
-    } catch(e) {}
-  };
+  const handleRemoveExtra = (idx: number) => updateRental(id as string, { extras: r.extras.filter((_, i) => i !== idx) });
 
   const Row = ({ l, v, hl }: { l: string; v: React.ReactNode; hl?: boolean }) => (
     <div className="flex justify-between items-center py-2.5 border-b border-[#21262d] last:border-0">
@@ -98,11 +81,19 @@ export default function LocationDetailPage() {
   const formatDateTime = (dateString?: string | Date) => {
     if (!dateString) return { date: "...", time: "..." };
     const d = new Date(dateString);
-    return { date: d.toLocaleDateString('fr-FR'), time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) };
+    return {
+      date: d.toLocaleDateString('fr-FR'),
+      time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    };
   };
   const start = formatDateTime(r.startDate);
   const end = formatDateTime(r.endDate);
-  const printBgStyle = { backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: "exact" as const, printColorAdjust: "exact" as const };
+
+  const printBgStyle = { 
+    backgroundColor: '#e5e7eb', 
+    WebkitPrintColorAdjust: "exact" as const, 
+    printColorAdjust: "exact" as const 
+  };
 
   return (
     <>
@@ -129,8 +120,9 @@ export default function LocationDetailPage() {
             <p className="text-slate-500 text-sm">Créé le {new Date(r.createdAt).toLocaleDateString("fr-FR")}</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
+            {/* BOUTON D'IMPRESSION */}
             <button onClick={() => window.print()} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#161b22] border border-[#21262d] text-slate-400 hover:text-slate-200 text-xs font-semibold transition-colors">
-              <Printer size={14} /> Imprimer
+              <Printer size={14} /> Imprimer Contrat
             </button>
             {isActive && <button onClick={() => setShowCloseModal(true)} className="flex items-center gap-2 px-4 py-2 bg-brand-green-600 hover:bg-brand-green-500 text-white text-sm font-semibold rounded-lg transition-colors"><CheckCircle size={14} /> Clôturer</button>}
           </div>
@@ -158,6 +150,7 @@ export default function LocationDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Contract details */}
           <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-5">
             <p className="text-sm font-bold text-slate-200 border-b border-[#21262d] pb-2 mb-3 flex items-center gap-2"><Calendar size={14} className="text-brand-green-400" /> Détails du contrat</p>
             <Row l="Date de départ" v={new Date(r.startDate).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })} />
@@ -176,6 +169,7 @@ export default function LocationDetailPage() {
           </div>
 
           <div className="space-y-4">
+            {/* Client */}
             {client && (
               <button onClick={() => router.push(`/clients/${client.id}`)}
                 className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 hover:border-brand-green-500/30 hover:bg-[#1c2130] transition-all group">
@@ -186,10 +180,12 @@ export default function LocationDetailPage() {
                     <p className="text-sm font-bold text-slate-200">{client.firstName} {client.lastName}</p>
                     <p className="text-xs text-slate-500">{client.phone} · CIN: {client.cin}</p>
                   </div>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-600 group-hover:text-brand-green-400"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>
               </button>
             )}
 
+            {/* Vehicle */}
             {vehicle && (
               <button onClick={() => router.push(`/vehicules/${vehicle.id}`)}
                 className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 hover:border-brand-green-500/30 hover:bg-[#1c2130] transition-all group">
@@ -200,10 +196,12 @@ export default function LocationDetailPage() {
                     <p className="text-sm font-bold text-slate-200">{vehicle.brand} {vehicle.model} {vehicle.year}</p>
                     <p className="text-xs text-slate-500 font-mono">{vehicle.plate} · {vehicle.dailyRate} MAD/j</p>
                   </div>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-600 group-hover:text-brand-green-400"><polyline points="9 18 15 12 9 6" /></svg>
                 </div>
               </button>
             )}
 
+            {/* Payment */}
             <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-bold text-slate-200 flex items-center gap-2"><Banknote size={14} className="text-brand-green-400" /> Paiement</p>
@@ -233,10 +231,12 @@ export default function LocationDetailPage() {
                 {isActive && (
                   showExtraForm ? (
                     <div className="flex gap-2 mt-1">
-                      <input value={newExtra.label} onChange={(e) => setNewExtra({ ...newExtra, label: e.target.value })} placeholder="Ex: GPS..." className="flex-1 px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-xs text-slate-200" />
-                      <input type="number" value={newExtra.amount} onChange={(e) => setNewExtra({ ...newExtra, amount: e.target.value })} placeholder="MAD" className="w-20 px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-xs text-slate-200" />
+                      <input value={newExtra.label} onChange={(e) => setNewExtra({ ...newExtra, label: e.target.value })} placeholder="Ex: GPS, siège bébé..."
+                        className="flex-1 px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-xs text-slate-200 placeholder-slate-600 focus:outline-none" />
+                      <input type="number" value={newExtra.amount} onChange={(e) => setNewExtra({ ...newExtra, amount: e.target.value })} placeholder="MAD"
+                        className="w-20 px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-xs text-slate-200 focus:outline-none" />
                       <button onClick={handleAddExtra} className="px-2 py-1.5 bg-brand-green-600 text-white rounded text-xs">+</button>
-                      <button onClick={() => setShowExtraForm(false)} className="px-2 py-1.5 bg-[#1c2130] text-slate-500 rounded text-xs"><X size={11} /></button>
+                      <button onClick={() => setShowExtraForm(false)} className="px-2 py-1.5 bg-[#1c2130] border border-[#21262d] text-slate-500 rounded text-xs"><X size={11} /></button>
                     </div>
                   ) : (
                     <button onClick={() => setShowExtraForm(true)} className="text-xs text-slate-600 hover:text-slate-400 flex items-center gap-1"><Plus size={10} /> Ajouter un extra</button>
@@ -249,13 +249,21 @@ export default function LocationDetailPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 text-sm">Encaissé</span>
                   {editingPayment
-                    ? <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="w-32 px-2 py-1 bg-[#0d1117] border border-brand-green-500/40 rounded text-sm text-brand-green-400 font-bold focus:outline-none text-right" />
+                    ? <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)}
+                        className="w-32 px-2 py-1 bg-[#0d1117] border border-brand-green-500/40 rounded text-sm text-brand-green-400 font-bold focus:outline-none text-right" />
                     : <span className="text-brand-green-400 font-bold">{r.paidAmount.toLocaleString("fr-FR")} MAD</span>
                   }
                 </div>
+                {remaining > 0 && (
+                  <div className="flex justify-between font-bold text-brand-orange-400 text-sm">
+                    <span>Solde dû</span>
+                    <span>{remaining.toLocaleString("fr-FR")} MAD</span>
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Deposit */}
             <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center justify-between">
               <div>
                 <p className="text-xs text-slate-500 mb-1">Caution / Dépôt de garantie</p>
@@ -266,10 +274,10 @@ export default function LocationDetailPage() {
                   {r.depositReturned ? "✓ Rendue" : "En attente"}
                 </span>
                 {!r.depositReturned && (
-                  <button onClick={async () => {
-                    await fetch(`/api/rentals/${id}`, { method: "POST", body: JSON.stringify({ depositReturned: true }) });
-                    updateRental(id as string, { depositReturned: true });
-                  }} className="text-xs px-3 py-1.5 rounded-lg bg-brand-green-500/10 text-brand-green-400 border border-brand-green-500/20 hover:bg-brand-green-500/20 transition-colors">Marquer rendue</button>
+                  <button onClick={() => updateRental(id as string, { depositReturned: true })}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-brand-green-500/10 text-brand-green-400 border border-brand-green-500/20 hover:bg-brand-green-500/20 transition-colors">
+                    Marquer rendue
+                  </button>
                 )}
               </div>
             </div>
@@ -277,6 +285,7 @@ export default function LocationDetailPage() {
         </div>
       </div>
 
+      {/* CONTRAT PDF INVISIBLE (POUR IMPRESSION) */}
       <div className="hidden print:block fixed inset-0 z-[99999] bg-white text-black font-sans text-[11px]">
         <div className="w-[210mm] h-[297mm] mx-auto p-[10mm] bg-white">
           <div className="flex justify-between items-center mb-8">
@@ -310,7 +319,7 @@ export default function LocationDetailPage() {
         </div>
       </div>
 
-      {/* VOTRE MODAL INCHANGÉ VISUELLEMENT MAIS CONNECTÉ À L'API ! */}
+      {/* MODAL DE CLÔTURE CONNECTÉ À L'API */}
       {showCloseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCloseModal(false)} />
