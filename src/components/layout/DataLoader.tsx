@@ -13,7 +13,7 @@ export default function DataLoader({ children }: { children: React.ReactNode }) 
             <Car size={24} className="text-white animate-pulse" />
           </div>
           <div>
-            <p className="text-white font-bold text-lg">Rentify-OS</p>
+            <p className="text-white font-bold text-lg">RentCar-OS</p>
             <p className="text-slate-500 text-sm mt-1">Chargement des données...</p>
           </div>
           <div className="flex justify-center gap-1.5 pt-2">

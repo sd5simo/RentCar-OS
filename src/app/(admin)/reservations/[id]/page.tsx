@@ -7,10 +7,10 @@ import { useStore } from "@/store";
 import { cn } from "@/lib/utils";
 
 const STATUS_CFG: Record<string, { l: string; c: string }> = {
-  CONFIRMED: { l: "Confirmée", c: "text-brand-green-400 bg-brand-green-500/10 border-brand-green-500/20" },
-  PENDING:   { l: "En attente", c: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
-  CANCELLED: { l: "Annulée", c: "text-red-400 bg-red-500/10 border-red-500/20" },
-  CONVERTED: { l: "Convertie", c: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
+  CONFIRMED: { l: "Confirmée", c: "text-brand-green-400 bg-brand-green-500/20 border-brand-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.15)]" },
+  PENDING:   { l: "En attente", c: "text-yellow-400 bg-yellow-500/20 border-yellow-500/30 shadow-[0_0_10px_rgba(250,204,21,0.15)]" },
+  CANCELLED: { l: "Annulée", c: "text-red-400 bg-red-500/20 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.15)]" },
+  CONVERTED: { l: "Convertie", c: "text-purple-400 bg-purple-500/20 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.15)]" },
 };
 
 export default function ReservationDetailPage() {
@@ -24,7 +24,7 @@ export default function ReservationDetailPage() {
 
   const [showPreview, setShowPreview] = useState(false);
 
-  if (!r) return <div className="text-center py-20 text-slate-500"><p>Réservation introuvable</p><button onClick={() => router.back()} className="mt-3 text-brand-green-400 text-sm hover:underline">← Retour</button></div>;
+  if (!r) return <div className="text-center py-20 text-slate-500"><p className="text-lg">Réservation introuvable</p><button onClick={() => router.back()} className="mt-3 text-brand-green-400 hover:underline">← Retour</button></div>;
 
   const cfg = STATUS_CFG[r.status];
   const days = Math.ceil((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / 86400000);
@@ -38,66 +38,78 @@ export default function ReservationDetailPage() {
         }
       `}</style>
 
-      <div className={cn("space-y-5 animate-fade-in max-w-2xl", showPreview && "print:hidden")}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-300 hover:bg-[#161b22] transition-colors"><ArrowLeft size={16} /></button>
+      <div className={cn("space-y-6 animate-fade-in max-w-4xl mx-auto relative z-10", showPreview && "print:hidden")}>
+        <div className="flex flex-col md:flex-row md:items-start gap-4 mb-8">
+          <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md shadow-sm flex-shrink-0 mt-1"><ArrowLeft size={18} /></button>
           <div className="flex-1">
-            <div className="flex items-center gap-3"><h1 className="text-2xl font-bold text-white font-mono">{r.refCode}</h1><span className={cn("inline-flex text-xs font-bold px-2.5 py-1 rounded-full border", cfg.c)}>{cfg.l}</span></div>
-            <p className="text-slate-500 text-sm">Créée le {new Date(r.createdAt).toLocaleDateString("fr-FR")}</p>
+            <div className="flex items-center gap-3 flex-wrap mb-1">
+              <h1 className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">{r.refCode}</h1>
+              <span className={cn("inline-flex items-center text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border shadow-sm", cfg.c)}>{cfg.l}</span>
+            </div>
+            <p className="text-slate-400 text-sm font-medium">Créée le {new Date(r.createdAt).toLocaleDateString("fr-FR")} à {new Date(r.createdAt).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowPreview(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#161b22] border border-[#21262d] text-slate-400 hover:text-slate-200 hover:border-[#30363d] text-xs font-semibold transition-colors">
-              <Printer size={14} /> Fiche / Facture
+          <div className="flex flex-wrap gap-3 md:mt-2">
+            <button onClick={() => setShowPreview(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-sm font-bold shadow-sm transition-all backdrop-blur-md">
+              <Printer size={16} /> Fiche / Proforma
             </button>
             {r.status === "PENDING" && <>
-              <button onClick={() => confirmReservation(id)} className="px-3 py-2 rounded-lg bg-brand-green-600 hover:bg-brand-green-500 text-white text-xs font-semibold">Confirmer</button>
-              <button onClick={() => cancelReservation(id)} className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/20">Annuler</button>
+              <button onClick={() => confirmReservation(id)} className="px-5 py-2.5 rounded-xl bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 hover:bg-brand-green-500/30 text-sm font-bold shadow-sm transition-all">Confirmer</button>
+              <button onClick={() => cancelReservation(id)} className="px-5 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 text-sm font-bold shadow-sm transition-all">Annuler</button>
             </>}
             {r.status === "CONFIRMED" && (
               <Link href="/locations/nouveau">
-                <button className="flex items-center gap-2 px-4 py-2 bg-brand-green-600 hover:bg-brand-green-500 text-white text-sm font-semibold rounded-lg"><ArrowRight size={14} /> Convertir</button>
+                <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-green-600 hover:bg-brand-green-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all"><ArrowRight size={16} /> Convertir en location</button>
               </Link>
             )}
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-5 space-y-3">
-          <p className="text-sm font-bold text-slate-200 border-b border-[#21262d] pb-2">Détails</p>
+        <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-4">
+          <p className="text-sm font-bold text-white border-b border-white/5 pb-4 mb-4 flex items-center gap-2"><div className="p-1.5 bg-blue-500/20 rounded-lg border border-blue-500/30"><Calendar size={16} className="text-blue-400" /></div> Détails de la réservation</p>
           {[
             ["Date de début", new Date(r.startDate).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })],
             ["Date de fin", new Date(r.endDate).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })],
-            ["Durée", `${days} jour${days > 1 ? "s" : ""}`],
-            ["Montant estimé", `${r.totalAmount.toLocaleString("fr-FR")} MAD`],
+            ["Durée prévue", `${days} jour${days > 1 ? "s" : ""}`],
+            ["Montant total estimé", <span key="amount" className="text-brand-green-400 font-black text-lg drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]">{r.totalAmount.toLocaleString("fr-FR")} MAD</span>],
           ].map(([l, v]) => (
-            <div key={l} className="flex justify-between py-2 border-b border-[#21262d] last:border-0">
-              <span className="text-xs text-slate-500 uppercase font-semibold">{l}</span>
-              <span className="text-sm font-semibold text-slate-200">{v}</span>
+            <div key={l as string} className="flex justify-between items-center py-3 border-b border-white/5 last:border-0">
+              <span className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">{l}</span>
+              <span className="text-sm font-bold text-white">{v}</span>
             </div>
           ))}
-          {r.notes && <p className="text-xs text-slate-500 italic pt-1">{r.notes}</p>}
+          {r.notes && (
+            <div className="pt-3 mt-3 border-t border-white/5">
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Notes spécifiques</p>
+              <p className="text-sm text-slate-300 italic bg-black/20 p-3 rounded-xl border border-white/5">{r.notes}</p>
+            </div>
+          )}
         </div>
 
-        {client && (
-          <button onClick={() => router.push(`/clients/${client.id}`)}
-            className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 hover:border-brand-green-500/30 hover:bg-[#1c2130] transition-all group">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-green-600 to-brand-green-800 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">{client.firstName[0]}{client.lastName[0]}</div>
-              <div className="flex-1"><p className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Client</p><p className="text-sm font-bold text-slate-200">{client.firstName} {client.lastName}</p><p className="text-xs text-slate-500">{client.phone} · {client.city}</p></div>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-600 group-hover:text-brand-green-400"><polyline points="9 18 15 12 9 6" /></svg>
-            </div>
-          </button>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {client && (
+            <button onClick={() => router.push(`/clients/${client.id}`)}
+              className="w-full text-left glass-panel glass-panel-hover rounded-3xl p-6 flex flex-col items-center text-center gap-3 transition-all group">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-green-500 to-brand-green-700 flex items-center justify-center text-xl font-black text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] border border-brand-green-400/30 group-hover:scale-105 transition-transform">{client.firstName[0]}{client.lastName[0]}</div>
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Profil Client</p>
+                <p className="text-lg font-bold text-white group-hover:text-brand-green-400 transition-colors">{client.firstName} {client.lastName}</p>
+                <p className="text-xs text-slate-400 mt-1 font-medium">{client.phone} <span className="mx-1">•</span> {client.city}</p>
+              </div>
+            </button>
+          )}
 
-        {vehicle && (
-          <button onClick={() => router.push(`/vehicules/${vehicle.id}`)}
-            className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 hover:border-brand-green-500/30 hover:bg-[#1c2130] transition-all group">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#1c2130] border border-[#21262d] flex items-center justify-center flex-shrink-0"><Car size={18} className="text-slate-500" /></div>
-              <div className="flex-1"><p className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Véhicule</p><p className="text-sm font-bold text-slate-200">{vehicle.brand} {vehicle.model} {vehicle.year}</p><p className="text-xs text-slate-500 font-mono">{vehicle.plate} · {vehicle.dailyRate} MAD/j</p></div>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-600 group-hover:text-brand-green-400"><polyline points="9 18 15 12 9 6" /></svg>
-            </div>
-          </button>
-        )}
+          {vehicle && (
+            <button onClick={() => router.push(`/vehicules/${vehicle.id}`)}
+              className="w-full text-left glass-panel glass-panel-hover rounded-3xl p-6 flex flex-col items-center text-center gap-3 transition-all group">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform"><Car size={28} className="text-slate-300" /></div>
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Véhicule réservé</p>
+                <p className="text-lg font-bold text-white group-hover:text-white transition-colors">{vehicle.brand} {vehicle.model} <span className="text-slate-400 font-normal">{vehicle.year}</span></p>
+                <p className="text-xs text-slate-400 mt-1 font-medium font-mono">{vehicle.plate} <span className="mx-1 font-sans">•</span> {vehicle.dailyRate} MAD/j</p>
+              </div>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* =========================================================================
@@ -106,28 +118,26 @@ export default function ReservationDetailPage() {
       {showPreview && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 print:bg-white backdrop-blur-md print:backdrop-blur-none transition-all duration-300">
           
-          {/* Header Preview Toolbar (Cachée à l'impression) */}
-          <div className="flex items-center justify-between p-4 bg-[#161b22] border-b border-[#30363d] print:hidden shrink-0">
+          {/* Header Preview Toolbar */}
+          <div className="flex items-center justify-between p-4 bg-[#161b22]/80 backdrop-blur-xl border-b border-white/10 print:hidden shrink-0">
             <div>
               <h2 className="text-white font-bold text-lg">Prévisualisation : Fiche de Réservation (Proforma)</h2>
               <p className="text-slate-400 text-xs">Vérifiez les détails avant de confirmer l'impression.</p>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-brand-green-600 hover:bg-brand-green-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-green-500/20 transition-all">
+              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 font-bold rounded-xl shadow-sm transition-all">
                 <Printer size={16} /> Imprimer
               </button>
-              <button onClick={() => setShowPreview(false)} className="p-2 text-slate-400 hover:text-white hover:bg-[#30363d] rounded-lg transition-colors">
+              <button onClick={() => setShowPreview(false)} className="p-2.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl border border-transparent hover:border-white/10 transition-all">
                 <X size={20} />
               </button>
             </div>
           </div>
 
-          {/* Zone d'affichage du document */}
           <div className="flex-1 overflow-auto p-8 flex justify-center print:p-0 print:overflow-visible">
-            
+            {/* Contenu Proforma Exact conservé */}
             <div className="w-[210mm] min-h-[297mm] bg-white text-black font-sans text-sm shadow-2xl p-[15mm] print:shadow-none print:w-full print:h-auto relative">
               
-              {/* Filigrane pour réservation */}
               <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
                 <h1 className="text-9xl font-black rotate-[-45deg] uppercase">PROFORMA</h1>
               </div>
@@ -143,10 +153,10 @@ export default function ReservationDetailPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <h2 className="font-bold text-xl text-gray-800">Rentify OS</h2>
+                    <h2 className="font-bold text-xl text-gray-800">RentCar OS</h2>
                     <p className="text-gray-600 mt-1">123 Avenue Principale<br/>Casablanca, Maroc</p>
                     <p className="text-gray-600">+212 6 00 00 00 00</p>
-                    <p className="text-gray-600">contact@rentify-os.com</p>
+                    <p className="text-gray-600">contact@RentCar-os.com</p>
                   </div>
                 </div>
 
@@ -198,11 +208,10 @@ export default function ReservationDetailPage() {
 
                 <div className="mt-20 pt-6 border-t border-gray-200 text-center text-xs text-gray-400">
                   <p>Ceci est une facture d'estimation (Proforma). Elle ne constitue pas un reçu de paiement définitif.</p>
-                  <p className="mt-1">Document généré automatiquement par Rentify OS le {new Date().toLocaleString('fr-FR')}</p>
+                  <p className="mt-1">Document généré automatiquement par RentCar OS le {new Date().toLocaleString('fr-FR')}</p>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       )}

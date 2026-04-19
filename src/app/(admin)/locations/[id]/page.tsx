@@ -4,7 +4,6 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Car, Calendar, Banknote, FileText, CheckCircle, Clock, Printer, X, Edit2, Plus, Trash2, Save, Copy, ChevronRight } from "lucide-react";
 import { useStore } from "@/store";
 import { cn } from "@/lib/utils";
-import { generateAndUploadPDF } from "@/lib/pdf-export";
 
 export default function LocationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,11 +22,7 @@ export default function LocationDetailPage() {
   const [paidAmount, setPaidAmount] = useState(r?.paidAmount?.toString() ?? "0");
   const [newExtra, setNewExtra] = useState({ label: "", amount: "" });
   const [showExtraForm, setShowExtraForm] = useState(false);
-
   const [previewDoc, setPreviewDoc] = useState<'contract' | 'invoice' | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [savedDocUrl, setSavedDocUrl] = useState<string | null>(null);
-
   const [isGenerating, setIsGenerating] = useState(false);
   const [settings, setSettings] = useState<any>(null);
 
@@ -35,16 +30,37 @@ export default function LocationDetailPage() {
     fetch('/api/settings').then(res => res.json()).then(data => { if (data.settings) setSettings(data.settings); }).catch(() => {});
   }, []);
 
-  if (!r) return <div className="text-center py-20 text-slate-500"><p>Location introuvable</p><button onClick={() => router.back()} className="mt-3 text-brand-green-400">← Retour</button></div>;
+  if (!r) return <div className="text-center py-20 text-slate-500"><p className="text-lg">Location introuvable</p><button onClick={() => router.back()} className="mt-3 text-brand-green-400 hover:underline text-sm">← Retour</button></div>;
 
   const isActive = r.status === "ACTIVE";
-  
   const extrasList = Array.isArray(r.extras) ? r.extras : [];
   const extrasTotal = extrasList.reduce((sum: number, ext: any) => sum + (Number(ext.amount) || 0), 0);
   const grandTotal = (Number(r.totalAmount) || 0) + extrasTotal;
   const remaining = grandTotal - (Number(r.paidAmount) || 0);
 
-  const handleClose = () => { store.closeRental(id as string, parseInt(closeForm.mileageEnd) || 0, closeForm.fuelEnd, closeForm.returnDate); setShowCloseModal(false); };
+  // ✅ CORRECTION ICI : Remplacement de `closeRental` par une mise à jour directe (100% fonctionnel)
+  const handleClose = () => {
+    const finalMileage = parseInt(closeForm.mileageEnd) || r.mileageStart || 0;
+    
+    // 1. Mettre à jour le contrat de location (Clôturé)
+    store.updateRental(id as string, { 
+      status: "COMPLETED", 
+      mileageEnd: finalMileage,
+      fuelLevelEnd: closeForm.fuelEnd,
+      returnDate: closeForm.returnDate
+    } as any);
+
+    // 2. Libérer le véhicule (Disponible) et actualiser son kilométrage
+    if (r.vehicleId) {
+      store.updateVehicle(r.vehicleId, {
+        status: "AVAILABLE",
+        mileage: finalMileage
+      } as any);
+    }
+    
+    setShowCloseModal(false); 
+  };
+
   const handleSavePayment = () => { store.updateRental(id as string, { paidAmount: parseFloat(paidAmount) || 0 } as any); setEditingPayment(false); };
   const handleAddExtra = () => {
     if (!newExtra.label || !newExtra.amount) return;
@@ -70,7 +86,7 @@ export default function LocationDetailPage() {
   };
 
   const Row = ({ l, v }: { l: string; v: React.ReactNode }) => (
-    <div className="flex justify-between items-center py-2.5 border-b border-[#21262d] last:border-0"><span className="text-xs text-slate-500 uppercase tracking-wide font-semibold">{l}</span><span className="text-sm font-semibold text-slate-200">{v}</span></div>
+    <div className="flex justify-between items-center py-3 border-b border-white/5 last:border-0"><span className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">{l}</span><span className="text-sm font-bold text-white">{v}</span></div>
   );
 
   const start = { date: new Date(r.startDate).toLocaleDateString('fr-FR'), time: new Date(r.startDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) };
@@ -79,93 +95,107 @@ export default function LocationDetailPage() {
 
   return (
     <>
-      <div className={cn("space-y-5 animate-fade-in", previewDoc && "print:hidden")}>
+      <div className={cn("space-y-6 animate-fade-in max-w-6xl mx-auto relative z-10", previewDoc && "print:hidden")}>
         {/* HEADER */}
-        <div className="flex items-start gap-3">
-          <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-md text-slate-500 hover:bg-[#161b22]"><ArrowLeft size={16} /></button>
+        <div className="flex flex-col md:flex-row md:items-start gap-4 mb-8">
+          <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md shadow-sm flex-shrink-0 mt-1"><ArrowLeft size={18} /></button>
           <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-white font-mono">{r.contractNum}</h1>
-              <span className={cn("inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border", isActive ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-brand-green-400 bg-brand-green-500/10 border-brand-green-500/20")}>
-                {isActive ? <Clock size={11} /> : <CheckCircle size={11} />}{isActive ? "En cours" : "Terminé"}
+            <div className="flex items-center gap-3 flex-wrap mb-1">
+              <h1 className="text-3xl font-black text-white font-mono tracking-tight drop-shadow-md">{r.contractNum}</h1>
+              <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border shadow-sm", isActive ? "text-blue-400 bg-blue-500/20 border-blue-500/30" : "text-brand-green-400 bg-brand-green-500/20 border-brand-green-500/30")}>
+                {isActive ? <Clock size={12} /> : <CheckCircle size={12} />}{isActive ? "En cours" : "Clôturé"}
               </span>
             </div>
+            <p className="text-slate-400 text-sm font-medium">Créé le {new Date(r.createdAt).toLocaleDateString("fr-FR")} à {new Date(r.createdAt).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setPreviewDoc('contract')} className="flex items-center gap-2 px-4 py-2 bg-brand-green-600 hover:bg-brand-green-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-brand-green-600/20"><FileText size={16} /> Voir Contrat & Signature</button>
-            <button onClick={() => setPreviewDoc('invoice')} className="flex items-center gap-2 px-3 py-2 bg-[#161b22] border border-[#21262d] text-slate-400 hover:text-white rounded-lg text-sm"><Printer size={14} /> Facture</button>
-            {isActive && <button onClick={() => setShowCloseModal(true)} className="flex items-center gap-2 px-4 py-2 bg-[#1c2130] hover:bg-[#21262d] text-white text-sm font-semibold rounded-lg border border-[#30363d]"><CheckCircle size={14} /> Clôturer</button>}
+          <div className="flex flex-wrap gap-3 md:mt-2">
+            <button onClick={() => setPreviewDoc('contract')} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 hover:bg-brand-green-500/30 rounded-xl text-sm font-bold shadow-sm transition-all"><FileText size={16} /> Contrat</button>
+            <button onClick={() => setPreviewDoc('invoice')} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl text-sm font-bold shadow-sm transition-all backdrop-blur-md"><Printer size={16} /> Facture</button>
+            {isActive && <button onClick={() => setShowCloseModal(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30 text-blue-400 text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.2)] transition-all"><CheckCircle size={16} /> Clôturer</button>}
           </div>
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-4 gap-3">
-          <div className="rounded-xl border border-brand-green-500/20 bg-[#161b22] p-4"><p className="text-xs text-slate-500">Montant total</p><p className="text-xl font-bold text-brand-green-400 mt-1">{grandTotal.toLocaleString("fr-FR")} MAD</p></div>
-          <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4"><p className="text-xs text-slate-500">Encaissé</p><p className="text-xl font-bold text-white mt-1">{Number(r.paidAmount || 0).toLocaleString("fr-FR")} MAD</p></div>
-          <div className={cn("rounded-xl border bg-[#161b22] p-4", remaining > 0 ? "border-brand-orange-500/25" : "border-[#21262d]")}><p className="text-xs text-slate-500">Solde dû</p><p className={cn("text-xl font-bold mt-1", remaining > 0 ? "text-brand-orange-400" : "text-brand-green-400")}>{remaining.toLocaleString("fr-FR")} MAD</p></div>
-          <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4"><p className="text-xs text-slate-500">Caution</p><p className="text-xl font-bold text-white mt-1">{Number(r.deposit || 0).toLocaleString("fr-FR")} MAD</p><p className="text-[10px] mt-0.5">{r.depositReturned ? <span className="text-brand-green-400">Rendue</span> : <span className="text-brand-orange-400">En attente</span>}</p></div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="glass-panel rounded-2xl p-5"><p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Montant total</p><p className="text-2xl font-black text-white mt-2 drop-shadow-sm">{grandTotal.toLocaleString("fr-FR")} MAD</p></div>
+          <div className="glass-panel rounded-2xl p-5 border-brand-green-500/20 bg-brand-green-500/5 shadow-inner"><p className="text-[11px] font-bold text-brand-green-400 uppercase tracking-widest">Encaissé</p><p className="text-2xl font-black text-brand-green-400 mt-2 drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]">{Number(r.paidAmount || 0).toLocaleString("fr-FR")} MAD</p></div>
+          <div className={cn("glass-panel rounded-2xl p-5", remaining > 0 ? "border-brand-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.1)]" : "")}><p className={cn("text-[11px] font-bold uppercase tracking-widest", remaining > 0 ? "text-brand-orange-400" : "text-slate-400")}>Solde dû</p><p className={cn("text-2xl font-black mt-2 drop-shadow-sm", remaining > 0 ? "text-brand-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]" : "text-white")}>{remaining.toLocaleString("fr-FR")} MAD</p></div>
+          <div className="glass-panel rounded-2xl p-5"><p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Caution</p><p className="text-2xl font-black text-white mt-2 drop-shadow-sm">{Number(r.deposit || 0).toLocaleString("fr-FR")} MAD</p><p className="text-[10px] font-bold uppercase tracking-widest mt-1.5">{r.depositReturned ? <span className="text-brand-green-400">Rendue</span> : <span className="text-brand-orange-400">Conservée</span>}</p></div>
         </div>
 
         {/* DETAILS LOCATION & CLIENT */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-5">
-            <p className="text-sm font-bold text-slate-200 border-b border-[#21262d] pb-2 mb-3 flex items-center gap-2"><Calendar size={14} className="text-brand-green-400" /> Détails du contrat</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="glass-panel rounded-3xl p-6 sm:p-8">
+            <p className="text-sm font-bold text-white border-b border-white/5 pb-4 mb-4 flex items-center gap-2"><div className="p-1.5 bg-blue-500/20 rounded-lg border border-blue-500/30"><Calendar size={16} className="text-blue-400" /></div> Détails opérationnels</p>
             <Row l="Départ" v={start.date} />
-            <Row l="Retour" v={end.date} />
-            <Row l="Durée" v={`${r.totalDays} jours`} />
-            <Row l="Tarif Journalier" v={`${r.dailyRate} MAD/j`} />
+            <Row l="Retour Prévu" v={end.date} />
+            {r.returnDate && <Row l="Retour Effectif" v={new Date(r.returnDate).toLocaleDateString('fr-FR')} />}
+            <Row l="Durée facturée" v={`${r.totalDays} jours`} />
+            <Row l="Tarif Journalier" v={`${r.dailyRate} MAD`} />
             <Row l="Carburant Départ" v={r.fuelLevelStart || "Plein"} />
-            <Row l="Kilométrage" v={`${r.mileageStart} km`} />
+            {r.fuelLevelEnd && <Row l="Carburant Retour" v={r.fuelLevelEnd} />}
+            <Row l="Kms Départ" v={`${r.mileageStart} km`} />
+            {r.mileageEnd && <Row l="Kms Retour" v={`${r.mileageEnd} km`} />}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {client && (
-              <button onClick={() => router.push(`/clients/${client.id}`)} className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center gap-4 hover:border-brand-green-500/50 hover:bg-[#1c2130] transition-all group">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-green-600 to-brand-green-800 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">{client.firstName[0]}{client.lastName[0]}</div>
-                <div className="flex-1"><p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Locataire</p><p className="text-white font-bold text-sm">{client.firstName} {client.lastName}</p><p className="text-xs text-slate-400">CIN: {client.cin} • {client.phone}</p></div>
-                <ChevronRight size={18} className="text-slate-500 group-hover:text-brand-green-400 transition-colors" />
+              <button onClick={() => router.push(`/clients/${client.id}`)} className="w-full text-left glass-panel glass-panel-hover rounded-3xl p-5 sm:p-6 flex items-center gap-5 transition-all group">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-green-500 to-brand-green-700 border border-brand-green-400/30 shadow-[0_0_15px_rgba(34,197,94,0.3)] flex items-center justify-center text-white font-black text-xl flex-shrink-0 group-hover:scale-105 transition-transform">{client.firstName[0]}{client.lastName[0]}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Locataire</p>
+                  <p className="text-lg font-bold text-white truncate">{client.firstName} {client.lastName}</p>
+                  <p className="text-xs font-medium text-slate-400 mt-0.5">CIN: <span className="font-mono text-slate-300">{client.cin}</span> • {client.phone}</p>
+                </div>
+                <ChevronRight size={20} className="text-slate-600 group-hover:text-brand-green-400 transition-colors" />
               </button>
             )}
 
             {vehicle && (
-              <button onClick={() => router.push(`/vehicules/${vehicle.id}`)} className="w-full text-left rounded-xl border border-[#21262d] bg-[#161b22] p-4 flex items-center gap-4 hover:border-brand-green-500/50 hover:bg-[#1c2130] transition-all group">
-                <div className="w-12 h-12 rounded-xl bg-[#1c2130] border border-[#30363d] flex items-center justify-center text-slate-400 flex-shrink-0"><Car size={20} /></div>
-                <div className="flex-1"><p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Véhicule</p><p className="text-white font-bold text-sm">{vehicle.brand} {vehicle.model}</p><p className="text-xs text-slate-400 font-mono">{vehicle.plate}</p></div>
-                <ChevronRight size={18} className="text-slate-500 group-hover:text-brand-green-400 transition-colors" />
+              <button onClick={() => router.push(`/vehicules/${vehicle.id}`)} className="w-full text-left glass-panel glass-panel-hover rounded-3xl p-5 sm:p-6 flex items-center gap-5 transition-all group">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform"><Car size={24} className="text-slate-300" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Véhicule assigné</p>
+                  <p className="text-lg font-bold text-white truncate">{vehicle.brand} {vehicle.model}</p>
+                  <p className="text-xs font-medium text-slate-400 mt-0.5 font-mono">{vehicle.plate}</p>
+                </div>
+                <ChevronRight size={20} className="text-slate-600 group-hover:text-white transition-colors" />
               </button>
             )}
 
-            <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-bold text-slate-200 flex items-center gap-2"><Banknote size={14} className="text-brand-green-400" /> Paiement</p>
+            <div className="glass-panel rounded-3xl p-6 sm:p-8 border-brand-green-500/20 shadow-[0_10px_30px_rgba(34,197,94,0.05)]">
+              <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-4">
+                <p className="text-sm font-bold text-white flex items-center gap-2"><div className="p-1.5 bg-brand-green-500/20 rounded-lg border border-brand-green-500/30"><Banknote size={16} className="text-brand-green-400" /></div> Comptabilité</p>
                 {!editingPayment ? (
-                  <button onClick={() => setEditingPayment(true)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300"><Edit2 size={11} /> Modifier</button>
+                  <button onClick={() => setEditingPayment(true)} className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-slate-400 hover:text-white bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 transition-all"><Edit2 size={12} /> Éditer</button>
                 ) : (
                   <div className="flex gap-2">
-                    <button onClick={handleSavePayment} className="text-xs px-2 py-1 rounded bg-brand-green-500/10 text-brand-green-400 border border-brand-green-500/20">Sauver</button>
-                    <button onClick={() => { setEditingPayment(false); setPaidAmount(r.paidAmount.toString()); }} className="text-xs px-2 py-1 rounded bg-[#1c2130] border border-[#21262d] text-slate-500">Annuler</button>
+                    <button onClick={handleSavePayment} className="text-[11px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg bg-brand-green-500/20 text-brand-green-400 border border-brand-green-500/30 hover:bg-brand-green-500/30 transition-all shadow-sm">Valider</button>
+                    <button onClick={() => { setEditingPayment(false); setPaidAmount(r.paidAmount.toString()); }} className="text-[11px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all">X</button>
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm"><span className="text-slate-500">Location</span><span className="text-slate-200">{Number(r.totalAmount).toLocaleString("fr-FR")} MAD</span></div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm font-medium"><span className="text-slate-400">Forfait Location</span><span className="text-white">{Number(r.totalAmount).toLocaleString("fr-FR")} MAD</span></div>
                 {extrasList.map((e: any, i: number) => (
-                  <div key={i} className="flex justify-between items-center text-sm"><span className="text-slate-500">+ {e.label}</span><div className="flex items-center gap-2"><span className="text-slate-200">{Number(e.amount).toLocaleString("fr-FR")} MAD</span>{isActive && <button onClick={() => handleRemoveExtra(i)} className="text-red-400/50 hover:text-red-400"><Trash2 size={11} /></button>}</div></div>
+                  <div key={i} className="flex justify-between items-center text-sm font-medium"><span className="text-slate-400">+ {e.label}</span><div className="flex items-center gap-3"><span className="text-white">{Number(e.amount).toLocaleString("fr-FR")} MAD</span>{isActive && <button onClick={() => handleRemoveExtra(i)} className="w-6 h-6 flex items-center justify-center rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"><Trash2 size={12} /></button>}</div></div>
                 ))}
                 {isActive && (
                   showExtraForm ? (
-                    <div className="flex gap-2 mt-1">
-                      <input value={newExtra.label} onChange={(e) => setNewExtra({ ...newExtra, label: e.target.value })} placeholder="Extra..." className="flex-1 px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-xs text-slate-200" />
-                      <input type="number" value={newExtra.amount} onChange={(e) => setNewExtra({ ...newExtra, amount: e.target.value })} placeholder="MAD" className="w-20 px-2 py-1.5 bg-[#0d1117] border border-[#30363d] rounded text-xs text-slate-200" />
-                      <button onClick={handleAddExtra} className="px-2 py-1.5 bg-brand-green-600 text-white rounded text-xs">+</button>
-                      <button onClick={() => setShowExtraForm(false)} className="px-2 py-1.5 bg-[#1c2130] border border-[#21262d] text-slate-500 rounded text-xs"><X size={11} /></button>
+                    <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-white/5">
+                      <input value={newExtra.label} onChange={(e) => setNewExtra({ ...newExtra, label: e.target.value })} placeholder="Désignation extra..." className="flex-1 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-brand-green-500/50" />
+                      <div className="flex gap-2">
+                        <input type="number" value={newExtra.amount} onChange={(e) => setNewExtra({ ...newExtra, amount: e.target.value })} placeholder="MAD" className="w-24 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-brand-green-500/50 text-right" />
+                        <button onClick={handleAddExtra} className="px-3 py-2 bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 font-bold rounded-lg hover:bg-brand-green-500/30"><Plus size={14} /></button>
+                        <button onClick={() => setShowExtraForm(false)} className="px-3 py-2 bg-white/5 border border-white/10 text-slate-400 rounded-lg hover:text-white hover:bg-white/10"><X size={14} /></button>
+                      </div>
                     </div>
-                  ) : <button onClick={() => setShowExtraForm(true)} className="text-xs text-slate-600 hover:text-slate-400 flex items-center gap-1"><Plus size={10} /> Ajouter un extra</button>
+                  ) : <button onClick={() => setShowExtraForm(true)} className="text-[11px] font-bold uppercase tracking-widest text-brand-green-400 hover:text-white transition-colors flex items-center gap-1.5 mt-2 bg-brand-green-500/10 px-2 py-1 rounded w-fit border border-brand-green-500/20"><Plus size={12} /> Ajouter une charge</button>
                 )}
-                <div className="border-t border-[#30363d] mt-2 pt-2 flex justify-between font-bold"><span className="text-slate-400">Total à payer</span><span className="text-white">{grandTotal.toLocaleString("fr-FR")} MAD</span></div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-slate-500 text-sm">Encaissé</span>
-                  {editingPayment ? <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="w-32 px-2 py-1 bg-[#0d1117] border border-brand-green-500/40 rounded text-sm text-brand-green-400 font-bold focus:outline-none text-right" /> : <span className="text-brand-green-400 font-bold">{Number(r.paidAmount || 0).toLocaleString("fr-FR")} MAD</span>}
+                <div className="border-t border-white/10 mt-4 pt-4 flex justify-between items-center"><span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Total à payer TTC</span><span className="text-lg font-black text-white">{grandTotal.toLocaleString("fr-FR")} MAD</span></div>
+                <div className="flex justify-between items-center mt-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-brand-green-400">Montant Encaissé</span>
+                  {editingPayment ? <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="w-32 px-3 py-1.5 bg-black/60 border border-brand-green-500/40 rounded-lg text-sm text-brand-green-400 font-bold focus:outline-none text-right [color-scheme:dark]" /> : <span className="text-lg font-black text-brand-green-400 drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]">{Number(r.paidAmount || 0).toLocaleString("fr-FR")} MAD</span>}
                 </div>
               </div>
             </div>
@@ -173,40 +203,73 @@ export default function LocationDetailPage() {
         </div>
       </div>
 
-      {/* OVERLAY CONTRAT PDF + E-SIGNATURE EN HAUT */}
-      {previewDoc === 'contract' && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 print:bg-white transition-all duration-300">
-          
-          {/* BARRE D'ACTIONS DU CONTRAT : E-SIGNATURE INTÉGRÉE ICI */}
-          <div className="flex items-center justify-between p-4 bg-[#161b22] border-b border-[#30363d] print:hidden shrink-0">
-            <h2 className="text-white font-bold text-lg hidden md:block">Contrat de Location</h2>
+      {/* Clôture Modal - CORRIGÉ */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowCloseModal(false)} />
+          <div className="relative glass-panel rounded-3xl p-8 w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center mb-5 mx-auto text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+               <CheckCircle size={24} />
+            </div>
+            <h3 className="text-xl font-black text-white mb-2 text-center">Clôturer la location</h3>
+            <p className="text-sm font-bold text-slate-400 mb-8 text-center">Contrat {r.contractNum}</p>
             
-            {/* PANNEAU DE CONTRÔLE E-SIGNATURE */}
-            <div className="flex items-center gap-4 bg-[#0d1117] border border-[#30363d] px-4 py-2 rounded-xl">
+            <div className="space-y-5 mb-8">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Kilométrage de retour</label>
+                <input type="number" value={closeForm.mileageEnd} onChange={e => setCloseForm({...closeForm, mileageEnd: e.target.value})} placeholder={`Actuel: ${r.mileageStart}`}
+                  className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all [color-scheme:dark]" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Carburant au retour</label>
+                <select value={closeForm.fuelEnd} onChange={e => setCloseForm({...closeForm, fuelEnd: e.target.value})}
+                  className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all [color-scheme:dark]">
+                  {["Vide", "1/4", "1/2", "3/4", "Plein"].map(f => <option key={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Date de restitution</label>
+                <input type="date" value={closeForm.returnDate} onChange={e => setCloseForm({...closeForm, returnDate: e.target.value})}
+                  className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all [color-scheme:dark]" />
+              </div>
+            </div>
+            
+            <div className="flex gap-4">
+              <button onClick={() => setShowCloseModal(false)} className="flex-1 py-3 bg-white/5 border border-white/10 text-slate-300 font-bold rounded-xl text-sm hover:bg-white/10 transition-all">Annuler</button>
+              {/* Le bouton n'est plus bloqué si mileageEnd est vide ! */}
+              <button onClick={handleClose} className="flex-1 py-3 bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30 text-blue-400 font-bold rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]">Valider</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OVERLAY CONTRAT PDF + E-SIGNATURE */}
+      {previewDoc === 'contract' && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 print:bg-white transition-all duration-300 backdrop-blur-md print:backdrop-blur-none">
+          <div className="flex items-center justify-between p-4 bg-[#161b22]/80 backdrop-blur-xl border-b border-white/10 print:hidden shrink-0">
+            <h2 className="text-white font-bold text-lg hidden md:block">Contrat de Location</h2>
+            <div className="flex items-center gap-4 bg-black/40 border border-white/10 px-4 py-2 rounded-xl shadow-inner">
               {r.signatureStatus === 'SIGNED' ? (
-                <span className="flex items-center gap-2 text-green-400 font-bold"><CheckCircle size={16} /> Signé par le client</span>
+                <span className="flex items-center gap-2 text-brand-green-400 font-bold"><CheckCircle size={16} /> Signé</span>
               ) : r.signatureToken ? (
                 <div className="flex items-center gap-6">
                    <div className="flex flex-col text-right">
-                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Code PIN Client</span>
+                      <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Code PIN Client</span>
                       <span className="text-lg font-mono font-bold text-brand-green-400 tracking-[0.2em] leading-none">{r.signaturePin}</span>
                    </div>
-                   <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/sign/${r.signatureToken}`); alert("Lien copié dans le presse-papier !"); }} className="flex items-center gap-2 bg-[#1c2130] hover:bg-[#21262d] text-white px-3 py-1.5 border border-[#30363d] rounded-lg text-sm font-bold transition-all"><Copy size={14} /> Copier le Lien</button>
+                   <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/sign/${r.signatureToken}`); alert("Lien copié !"); }} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 border border-white/10 rounded-lg text-xs font-bold transition-all"><Copy size={14} /> Copier le Lien</button>
                 </div>
               ) : (
-                <button onClick={generateSignatureLink} disabled={isGenerating} className="flex items-center gap-2 bg-brand-green-600 hover:bg-brand-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all">{isGenerating ? "Création..." : "Demander E-Signature"}</button>
+                <button onClick={generateSignatureLink} disabled={isGenerating} className="flex items-center gap-2 bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 hover:bg-brand-green-500/30 px-4 py-2 rounded-lg font-bold text-sm transition-all">{isGenerating ? "Création..." : "Demander E-Signature"}</button>
               )}
             </div>
-
             <div className="flex items-center gap-3">
-              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded"><Printer size={16} /> Imprimer</button>
-              <button onClick={() => setPreviewDoc(null)} className="p-2 text-slate-400 hover:text-white hover:bg-[#30363d] rounded-lg transition-colors"><X size={20} /></button>
+              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-all"><Printer size={16} /> Imprimer</button>
+              <button onClick={() => setPreviewDoc(null)} className="p-2.5 text-slate-400 hover:text-white bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-xl border border-white/10 transition-all"><X size={20} /></button>
             </div>
           </div>
-
           <div className="flex-1 overflow-auto p-8 flex justify-center print:p-0 print:overflow-visible">
             <div id="document-to-pdf" className="w-[210mm] min-h-[297mm] bg-white text-black font-sans text-[11px] shadow-2xl p-[10mm] print:shadow-none print:w-full print:h-auto">
-              
               <div className="flex justify-between items-center mb-8">
                 <div className="w-[150px] h-[70px] flex items-center justify-start">
                   {settings?.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" /> : <div className="text-gray-400 border p-2 text-xs">[Logo Agence]</div>}
@@ -274,12 +337,12 @@ export default function LocationDetailPage() {
 
       {/* OVERLAY FACTURE */}
       {previewDoc === 'invoice' && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 print:bg-white transition-all duration-300">
-          <div className="flex items-center justify-between p-4 bg-[#161b22] border-b border-[#30363d] print:hidden shrink-0">
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 print:bg-white backdrop-blur-md print:backdrop-blur-none transition-all duration-300">
+          <div className="flex items-center justify-between p-4 bg-[#161b22]/80 backdrop-blur-xl border-b border-white/10 print:hidden shrink-0">
             <h2 className="text-white font-bold text-lg">Prévisualisation Facture</h2>
             <div className="flex items-center gap-4">
-              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-brand-green-600 text-white font-bold rounded"><Printer size={16} /> Imprimer</button>
-              <button onClick={() => setPreviewDoc(null)} className="p-2 text-slate-400 hover:text-white hover:bg-[#30363d] rounded-lg transition-colors"><X size={20} /></button>
+              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 font-bold rounded-xl"><Printer size={16} /> Imprimer</button>
+              <button onClick={() => setPreviewDoc(null)} className="p-2.5 text-slate-400 hover:text-white bg-white/5 hover:bg-red-500/20 hover:text-red-400 rounded-xl border border-white/10 transition-all"><X size={20} /></button>
             </div>
           </div>
           <div className="flex-1 overflow-auto p-8 flex justify-center print:p-0 print:overflow-visible">

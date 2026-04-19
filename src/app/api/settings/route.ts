@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     let settings = await prisma.agencySettings.findFirst();
     if (!settings) {
       settings = await prisma.agencySettings.create({ 
-        data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } 
+        data: { securityPin: "1234", adminUsername: "admin", adminPassword: "RentCar" } 
       });
     }
     return NextResponse.json({ settings });
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
     if (!settings) {
       settings = await prisma.agencySettings.create({ 
-        data: { securityPin: "1234", adminUsername: "admin", adminPassword: "rentify" } 
+        data: { securityPin: "1234", adminUsername: "admin", adminPassword: "RentCar" } 
       });
     }
 

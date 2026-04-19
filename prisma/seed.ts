@@ -15,7 +15,7 @@ async function main() {
   await prisma.vehicle.deleteMany();
   await prisma.client.deleteMany();
 
-  console.log("🌱 Seeding Rentify-OS with Maximum Potential (12+ Cars)...");
+  console.log("🌱 Seeding RentCar-OS with Maximum Potential (12+ Cars)...");
 
   // ---------------------------------------------------------
   // 1. CLIENTS (15 varied profiles: VIP, Blacklisted, Corporate, Regulars)

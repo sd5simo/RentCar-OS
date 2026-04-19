@@ -3,14 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store/useStore";
-import { ArrowLeft, Save, CheckCircle } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle, User } from "lucide-react";
 
-// ✅ 1. MOVED OUTSIDE
-const Input = ({ label, value, onChange, type = "text", placeholder = "", required = false }: any) => (
+interface InputProps {
+  label: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+}
+
+const Input = ({ label, value, onChange, type = "text", placeholder = "", required = false }: InputProps) => (
   <div>
-    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">{label}{required && <span className="text-red-400 ml-1">*</span>}</label>
+    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
+      {label} {required && <span className="text-red-400 ml-1">*</span>}
+    </label>
     <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-      className="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-green-500/50 transition-all" />
+      className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-green-500/50 focus:bg-white/[0.05] transition-all [color-scheme:dark]" />
   </div>
 );
 
@@ -31,42 +41,50 @@ export default function NouveauClientPage() {
   };
 
   return (
-    <div className="max-w-2xl space-y-5 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="w-8 h-8 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-300 hover:bg-[#161b22] transition-colors"><ArrowLeft size={16} /></button>
-        <div><h1 className="text-2xl font-bold text-white">Nouveau Client</h1><p className="text-slate-500 text-sm">Enregistrer un nouveau client</p></div>
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in relative z-10">
+      <div className="flex items-center gap-4 mb-8">
+        <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md shadow-sm"><ArrowLeft size={18} /></button>
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">Nouveau Client</h1>
+          <p className="text-slate-400 text-sm mt-0.5 font-medium">Enregistrer un nouveau profil client</p>
+        </div>
       </div>
 
-      {saved && <div className="rounded-lg border border-brand-green-500/30 bg-brand-green-500/10 p-3 text-sm text-brand-green-400 flex items-center gap-2"><CheckCircle size={14} />Client créé! Redirection...</div>}
+      {saved && <div className="glass-panel rounded-2xl border-brand-green-500/30 bg-brand-green-500/10 p-4 text-sm font-bold text-brand-green-400 flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.15)]"><CheckCircle size={16} />Client créé avec succès ! Redirection en cours...</div>}
 
-      <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-6 space-y-4">
-        <p className="text-sm font-bold text-slate-200 border-b border-[#21262d] pb-3">Identité</p>
-        <div className="grid grid-cols-2 gap-4">
-          {/* ✅ 2. UPDATED TO PASS VALUE AND ONCHANGE */}
-          <Input label="Prénom" value={form.firstName} onChange={F("firstName")} placeholder="Youssef" required />
-          <Input label="Nom" value={form.lastName} onChange={F("lastName")} placeholder="Benali" required />
-          <Input label="CIN" value={form.cin} onChange={F("cin")} placeholder="AB123456" required />
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="text-sm font-bold text-white flex items-center gap-2"><span className="p-1.5 bg-blue-500/20 rounded-lg border border-blue-500/30 flex items-center justify-center"><User size={16} className="text-blue-400" /></span> Identité Principale</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Input label="Prénom" value={form.firstName} onChange={F("firstName")} placeholder="Prénom" required />
+          <Input label="Nom" value={form.lastName} onChange={F("lastName")} placeholder="Nom" required />
+          <Input label="CIN / Passeport" value={form.cin} onChange={F("cin")} placeholder="AB123456" required />
           <Input label="Téléphone" value={form.phone} onChange={F("phone")} placeholder="0661234567" required />
           <Input label="Email" value={form.email} onChange={F("email")} type="email" placeholder="email@example.ma" />
           <Input label="Ville" value={form.city} onChange={F("city")} placeholder="Casablanca" />
         </div>
-        <Input label="Adresse" value={form.address} onChange={F("address")} placeholder="12 Rue Hassan II, Casablanca" />
-      </div>
-
-      <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-6 space-y-4">
-        <p className="text-sm font-bold text-slate-200 border-b border-[#21262d] pb-3">Permis de conduire</p>
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Numéro" value={form.licenseNum} onChange={F("licenseNum")} placeholder="MA-12345" />
-          <Input label="Expiration" value={form.licenseExp} onChange={F("licenseExp")} type="date" />
+        <div className="pt-2">
+           <Input label="Adresse Complète" value={form.address} onChange={F("address")} placeholder="12 Rue Hassan II, Casablanca" />
         </div>
       </div>
 
-      <div className="rounded-xl border border-[#21262d] bg-[#161b22] p-6">
-        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5 block">Notes internes</label>
-        <textarea value={form.notes} onChange={F("notes")} placeholder="Observations, préférences..." rows={3} className="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-green-500/50 resize-none" />
+      <div className="glass-panel rounded-3xl p-6 sm:p-8 space-y-6">
+        <div className="text-sm font-bold text-white">Permis de conduire</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Input label="Numéro de permis" value={form.licenseNum} onChange={F("licenseNum")} placeholder="MA-12345" />
+          <Input label="Date d'expiration" value={form.licenseExp} onChange={F("licenseExp")} type="date" />
+        </div>
       </div>
 
-      <button onClick={submit} disabled={!valid} className="w-full flex items-center justify-center gap-2 py-3 bg-brand-green-600 hover:bg-brand-green-500 disabled:opacity-40 text-white font-semibold rounded-lg transition-colors"><Save size={15} /> Enregistrer le client</button>
+      <div className="glass-panel rounded-3xl p-6 sm:p-8">
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Notes internes (Confidenciel)</label>
+        <textarea value={form.notes} onChange={F("notes")} placeholder="Observations, préférences du client..." rows={3} 
+          className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-green-500/50 focus:bg-white/[0.05] transition-all resize-none" />
+      </div>
+
+      <button onClick={submit} disabled={!valid} 
+        className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-brand-green-500/20 border border-brand-green-500/30 text-brand-green-400 text-sm font-bold hover:bg-brand-green-500/30 hover:shadow-[0_0_20px_rgba(34,197,94,0.25)] transition-all disabled:opacity-40 disabled:hover:shadow-none disabled:cursor-not-allowed">
+        <Save size={16} /> Enregistrer le client
+      </button>
     </div>
   );
 }

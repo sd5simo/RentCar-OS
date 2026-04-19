@@ -14,9 +14,9 @@ export async function POST(request: Request) {
     }
 
     const data = await resend.emails.send({
-      from: 'Rentify OS <onboarding@resend.dev>', 
+      from: 'RentCar OS <onboarding@resend.dev>', 
       to: [email],
-      subject: `Votre ${documentType} - Rentify OS (Réf: ${refCode})`,
+      subject: `Votre ${documentType} - RentCar OS (Réf: ${refCode})`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px;">
           <h2 style="color: #1a1a1a;">Bonjour ${clientName},</h2>
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
               Consulter / Télécharger le document
             </a>
           </div>
-          <p style="color: #4a4a4a; font-size: 14px;">Merci pour votre confiance !<br/>L'équipe Rentify OS</p>
+          <p style="color: #4a4a4a; font-size: 14px;">Merci pour votre confiance !<br/>L'équipe RentCar OS</p>
         </div>
       `,
     });

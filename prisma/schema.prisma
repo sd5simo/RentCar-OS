@@ -167,7 +167,7 @@ model AgencySettings {
   securityPin    String   @default("1234") 
   
   adminUsername  String   @default("admin")
-  adminPassword  String   @default("rentify")
+  adminPassword  String   @default("RentCar")
 
   updatedAt      DateTime @updatedAt
 }

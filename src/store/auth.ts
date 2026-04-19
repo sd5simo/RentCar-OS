@@ -15,7 +15,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   username: null,
   
   dbUser: "admin", 
-  dbPass: "rentify", 
+  dbPass: "rentcar", 
 
   fetchDbCredentials: async () => {
     try {
@@ -24,7 +24,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       if (data.settings) {
         set({ 
           dbUser: data.settings.adminUsername || "admin", 
-          dbPass: data.settings.adminPassword || "rentify" 
+          dbPass: data.settings.adminPassword || "rentcar" 
         });
       }
     } catch (e) {

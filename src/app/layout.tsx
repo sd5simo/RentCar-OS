@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Rentify-OSAdmin — Gestion de Location",
-  description: "Plateforme d'administration interne — Rentify-OSCar Rental",
+  title: "RentCar-OSAdmin — Gestion de Location",
+  description: "Plateforme d'administration interne — RentCar-OSCar Rental",
   icons: { icon: "/favicon.ico" },
 };
 

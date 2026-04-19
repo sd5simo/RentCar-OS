@@ -48,12 +48,12 @@ export default function LoginPage() {
           <div className="w-16 h-16 mb-4 flex items-center justify-center relative">
             <img 
               src="/logo.png" 
-              alt="Rentify-OSAuto Logo" 
+              alt="RentCar-OSAuto Logo" 
               className="w-full h-full object-contain drop-shadow-2xl" 
             />
           </div>
 
-          <h1 className="text-2xl font-semibold text-white tracking-tight">Rentify-OSAuto</h1>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">RentCar-OSAuto</h1>
           <p className="text-zinc-500 text-sm mt-1.5">Plateforme d'administration interne</p>
         </div>
 
@@ -126,7 +126,7 @@ export default function LoginPage() {
         {/* Footer / Demo Hint */}
         <div className="mt-8 flex flex-col items-center gap-2">
           <p className="text-[11px] text-zinc-600 font-medium">
-            Rentify-OS © {new Date().getFullYear()}
+            RentCar-OS © {new Date().getFullYear()}
           </p>
         
         </div>
